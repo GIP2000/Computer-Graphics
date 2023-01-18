@@ -1,13 +1,13 @@
 use glfw::{Action, Context, Key};
 use learn_opengl::camera::{Camera, CameraDirection, CameraDirectionTrait};
 use learn_opengl::gls::buffers::texture::{Texture2D, Textures};
-use learn_opengl::gls::buffers::{ebo::EBO, Attribute, Bindable, VOs};
+use learn_opengl::gls::buffers::{Attribute, Bindable, VOs};
 use learn_opengl::gls::shader::{Shader, ShaderProgram};
-use learn_opengl::window;
+use learn_opengl::window::Window;
 use std::path::Path;
 use std::sync::mpsc::Receiver;
 
-use cgmath::{perspective, vec3, Deg, EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, Vector3};
+use cgmath::{perspective, vec3, Deg, Matrix4, Point3};
 
 const SCR_WIDTH: u32 = 800;
 const SCR_HEIGHT: u32 = 600;
@@ -50,18 +50,11 @@ void main()
 "#;
 
 fn main() {
-    let mut glfw = window::init_glfw().expect("Failed to Initalize GLFW");
-
+    let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl").unwrap();
     let mut delta_time: f32;
     let mut last_frame: f32 = 0.;
 
-    let (mut window, events) = window::make_window(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl", &glfw)
-        .expect("Failed to start window");
-    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
-
-    unsafe {
-        gl::Enable(gl::DEPTH_TEST);
-    }
+    // -- Under here is good for now
 
     let v_shader =
         Shader::new(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER).expect("Failed to Compile V Shader");
@@ -136,47 +129,30 @@ fn main() {
     shader.set_uniform("texture1", 0).unwrap();
     shader.set_uniform("texture2", 1).unwrap();
 
-    // let mut camera_pos: Vector3<f32> = vec3(0., 0., 3.);
-    // let mut camera_target: Vector3<f32> = vec3(0., 0., 0.);
-    // let up: Vector3<f32> = vec3(0., 1., 0.);
-
     let mut cam = Camera::new(
-        Point3::<f32>::new(0., 0., 10.),
-        Point3::<f32>::new(0., 0., 0.),
+        Point3::<f32>::new(0., 0., 2.),
+        90f32,
+        0f32,
         vec3(2.5, 2.5, 2.5),
     );
-    while !window.should_close() {
+    let mut projection: Matrix4<f32> =
+        perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
+    shader.set_uniform("projection", projection).unwrap();
+
+    window.app_loop(|mut w| {
         // events
         // -----
-        process_events(&mut window, &events);
-        let current_frame = glfw.get_time() as f32;
-        delta_time = current_frame - last_frame;
-        last_frame = current_frame;
+        process_events(&mut w, &mut cam, &mut projection);
 
-        let dir = process_input(&mut window);
+        let dir = process_input(&mut w.window);
         if let Some(dir) = dir {
             if dir != 0 {
-                cam.translate_camera(dir, delta_time);
+                cam.translate_camera(dir, w.delta_time);
             }
         }
 
-        // render
-        // ___
-        // let radius = 10f32;
-        // cam.set_x(radius * glfw.get_time().sin() as f32);
-        // cam.set_z(radius * glfw.get_time().cos() as f32);
-
-        unsafe {
-            gl::ClearColor(0.2, 0.3, 0.3, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
         let view = cam.get_view();
-        let projection: Matrix4<f32> =
-            perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
-
-        // shader.set_uniform("model", model).unwrap();
         shader.set_uniform("view", view).unwrap();
-        shader.set_uniform("projection", projection).unwrap();
 
         shader.use_program();
         let texs = Textures::new([&texture1, &texture2]).unwrap();
@@ -184,20 +160,10 @@ fn main() {
 
         for (_i, pos) in cube_positions.iter().enumerate() {
             let model = Matrix4::from_translation(*pos);
-            // model = model
-            //     * Matrix4::from_axis_angle(
-            //         vec3(1.0, 0.3, 0.5).normalize(),
-            //         Rad(glfw.get_time() as f32),
-            //     );
             shader.set_uniform("model", model).unwrap();
             vbo_vba.draw_arrays(0, 36);
         }
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
-        window.swap_buffers();
-        glfw.poll_events();
-    }
+    });
 }
 
 fn process_input(window: &mut glfw::Window) -> Option<CameraDirection> {
@@ -227,25 +193,33 @@ fn process_input(window: &mut glfw::Window) -> Option<CameraDirection> {
         dirs.toggle_up();
     }
 
-    if window.get_key(Key::Tab) == Action::Press {
+    if window.get_key(Key::LeftShift) == Action::Press
+        || window.get_key(Key::RightShift) == Action::Press
+    {
         dirs.toggle_down();
     }
 
     return Some(dirs);
 }
 
-fn process_events(window: &mut glfw::Window, events: &Receiver<(f64, glfw::WindowEvent)>) {
-    for (_, event) in glfw::flush_messages(events) {
+fn process_events(w: &mut Window, cam: &mut Camera, proj: &mut Matrix4<f32>) -> bool {
+    for (_, event) in glfw::flush_messages(&w.events) {
         match event {
             glfw::WindowEvent::FramebufferSize(width, height) => {
                 // make sure the viewport matches the new window dimensions; note that width and
                 // height will be significantly larger than specified on retina displays.
-                unsafe { gl::Viewport(0, 0, width, height) }
+                w.width = width as u32;
+                w.height = height as u32;
+                *proj = perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
+                unsafe {
+                    gl::Viewport(0, 0, width, height);
+                };
             }
-            // glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-            //     window.set_should_close(true)
-            // }
+            glfw::WindowEvent::CursorPos(x, y) => {
+                cam.move_point_pos(x as f32, y as f32);
+            }
             _ => {}
-        }
+        };
     }
+    false
 }
