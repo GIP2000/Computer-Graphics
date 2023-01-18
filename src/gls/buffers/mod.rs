@@ -1,7 +1,9 @@
+pub mod ebo;
+pub mod texture;
 use super::gl_size::GLSize;
 use anyhow::{bail, Result};
 use gl::types::*;
-use std::{marker::PhantomData, os::raw::c_void};
+use std::os::raw::c_void;
 
 pub trait Bindable {
     fn bind(&self);
@@ -25,14 +27,9 @@ unsafe fn make_buffer<T: GLSize>(data: &[T], buffer_type: GLenum, usage: GLenum)
 }
 
 pub struct VOs {
-    vao: u32,
-    vbo: u32,
-    shape: GLenum,
-}
-
-pub struct EBO<T: GLSize> {
-    ebo: u32,
-    phantom: PhantomData<T>,
+    pub vao: u32,
+    pub vbo: u32,
+    pub shape: GLenum,
 }
 
 pub struct Attribute {
@@ -61,6 +58,9 @@ impl VOs {
         if verts.len() <= 0 {
             bail!("input verts was empty");
         }
+        if attributes.len() >= gl::MAX_VERTEX_ATTRIBS as usize {
+            bail!("Too many attributes")
+        }
         unsafe {
             gl::GenVertexArrays(1, &mut vao);
             if vao <= 0 {
@@ -69,10 +69,13 @@ impl VOs {
             gl::BindVertexArray(vao);
             vbo = make_buffer(verts, gl::ARRAY_BUFFER, gl::STATIC_DRAW)?;
             for (i, at) in attributes.iter().enumerate() {
-                if at.offset >= verts.len() // offset overflows
-                    || (verts.len() - at.offset) % at.stride != 0
-                // checks if stride will overflow
-                {
+                if at.size < 1 || at.size > 4 {
+                    let _ = Self { vbo, vao, shape }; // this drops the current VBO and VAO
+                                                      // deleting them from GPU memory
+                    bail!("size is not between 1-4 or GLBGRA")
+                }
+
+                if at.offset >= verts.len() || at.stride >= verts.len() {
                     let _ = Self { vbo, vao, shape }; // this drops the current VBO and VAO
                                                       // deleting them from GPU memory
                     bail!("Properties do not make sense")
@@ -86,9 +89,9 @@ impl VOs {
                     (at.offset * T::gl_size_of()) as *const c_void,
                 );
                 gl::EnableVertexAttribArray(i as GLuint);
-                gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-                gl::BindVertexArray(0);
             }
+            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+            gl::BindVertexArray(0);
         };
         Ok(Self { vbo, vao, shape })
     }
@@ -97,7 +100,8 @@ impl VOs {
         self.shape = shape;
     }
 
-    pub fn draw_arrays(&self, start: i32, len: i32) {
+    pub fn draw_arrays(&self, start: i32, len: u32) {
+        let len = len as i32;
         self.bind();
         unsafe {
             gl::DrawArrays(self.shape, start, len);
@@ -110,46 +114,6 @@ impl Bindable for VOs {
         unsafe {
             gl::BindVertexArray(self.vao);
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-        }
-    }
-}
-impl<T: GLSize> Drop for EBO<T> {
-    fn drop(&mut self) {
-        println!("Dropping EBO");
-        unsafe {
-            gl::DeleteBuffers(1, &self.ebo);
-        }
-    }
-}
-
-impl<T: GLSize> Bindable for EBO<T> {
-    fn bind(&self) {
-        unsafe {
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
-        };
-    }
-}
-
-impl<T: GLSize> EBO<T> {
-    pub fn new(indices: &[T]) -> Result<Self> {
-        println!("Building EBO");
-        let ebo = unsafe { make_buffer(indices, gl::ELEMENT_ARRAY_BUFFER, gl::STATIC_DRAW)? };
-        return Ok(Self {
-            ebo,
-            phantom: PhantomData,
-        });
-    }
-
-    pub fn draw_elements(&self, vo: &VOs, count: i32, offset: usize) {
-        vo.bind();
-        self.bind();
-        unsafe {
-            gl::DrawElements(
-                vo.shape,
-                count,
-                T::gl_type(),
-                (offset * T::gl_size_of()) as *const c_void,
-            )
         }
     }
 }

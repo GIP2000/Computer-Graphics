@@ -9,7 +9,7 @@ pub struct Shader {
 }
 
 pub struct ShaderProgram {
-    id: u32,
+    pub id: u32,
 }
 
 impl Drop for ShaderProgram {
@@ -34,11 +34,12 @@ impl ShaderProgram {
     }
 
     pub fn set_uniform<T: SetUniform>(&self, name: &str, data: T) -> Result<()> {
+        self.use_program();
         unsafe {
             let uid = self.get_uniform(name)?;
-            if uid <= 0 {
-                bail!("Invalid UID")
-            }
+            // if uid <= 0 {
+            //     bail!("Invalid UID")
+            // }
             data.set_uniform(uid);
         }
         Ok(())

@@ -5,6 +5,16 @@ pub trait GLSize: Sized {
     fn gl_type() -> GLenum;
 }
 
+impl GLSize for u8 {
+    fn gl_size_of() -> usize {
+        mem::size_of::<GLubyte>()
+    }
+
+    fn gl_type() -> GLenum {
+        gl::UNSIGNED_BYTE
+    }
+}
+
 impl GLSize for f32 {
     fn gl_size_of() -> usize {
         mem::size_of::<GLfloat>()

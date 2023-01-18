@@ -1,3 +1,6 @@
+use cgmath::prelude::*;
+use cgmath::Matrix4;
+
 pub trait SetUniform {
     unsafe fn set_uniform(&self, id: i32);
 }
@@ -17,6 +20,12 @@ impl SetUniform for i32 {
 impl SetUniform for f32 {
     unsafe fn set_uniform(&self, id: i32) {
         gl::Uniform1f(id, *self);
+    }
+}
+
+impl SetUniform for Matrix4<f32> {
+    unsafe fn set_uniform(&self, id: i32) {
+        gl::UniformMatrix4fv(id, 1, gl::FALSE, self.as_ptr());
     }
 }
 
