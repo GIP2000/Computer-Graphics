@@ -1,4 +1,5 @@
 use glfw::{Action, Context, Key};
+use learn_opengl::camera::{Camera, CameraDirection, CameraDirectionTrait};
 use learn_opengl::gls::buffers::texture::{Texture2D, Textures};
 use learn_opengl::gls::buffers::{ebo::EBO, Attribute, Bindable, VOs};
 use learn_opengl::gls::shader::{Shader, ShaderProgram};
@@ -50,6 +51,10 @@ void main()
 
 fn main() {
     let mut glfw = window::init_glfw().expect("Failed to Initalize GLFW");
+
+    let mut delta_time: f32;
+    let mut last_frame: f32 = 0.;
+
     let (mut window, events) = window::make_window(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl", &glfw)
         .expect("Failed to start window");
     gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
@@ -117,6 +122,7 @@ fn main() {
         None,
     )
     .expect("Failed to lode texture");
+
     let face_texture = image::open(&Path::new("awesomeface.png")).unwrap();
     let texture2 = Texture2D::new(
         face_texture.flipv(),
@@ -130,36 +136,41 @@ fn main() {
     shader.set_uniform("texture1", 0).unwrap();
     shader.set_uniform("texture2", 1).unwrap();
 
-    let mut camera_pos: Vector3<f32> = vec3(0., 0., 3.);
-    let mut camera_target: Vector3<f32> = vec3(0., 0., 0.);
-    let up: Vector3<f32> = vec3(0., 1., 0.);
+    // let mut camera_pos: Vector3<f32> = vec3(0., 0., 3.);
+    // let mut camera_target: Vector3<f32> = vec3(0., 0., 0.);
+    // let up: Vector3<f32> = vec3(0., 1., 0.);
 
+    let mut cam = Camera::new(
+        Point3::<f32>::new(0., 0., 10.),
+        Point3::<f32>::new(0., 0., 0.),
+        vec3(2.5, 2.5, 2.5),
+    );
     while !window.should_close() {
         // events
         // -----
         process_events(&mut window, &events);
+        let current_frame = glfw.get_time() as f32;
+        delta_time = current_frame - last_frame;
+        last_frame = current_frame;
+
+        let dir = process_input(&mut window);
+        if let Some(dir) = dir {
+            if dir != 0 {
+                cam.translate_camera(dir, delta_time);
+            }
+        }
+
         // render
         // ___
-        let radius = 10f32;
-        camera_pos.x = radius * glfw.get_time().sin() as f32;
-        camera_pos.z = radius * glfw.get_time().cos() as f32;
-        let camera_direction = (camera_pos - camera_target).normalize();
-        let camera_right = up.cross(camera_direction).normalize();
-        let camera_up = camera_direction.cross(camera_right);
-        let view = Matrix4::<f32>::look_at_rh(
-            Point3::from_vec(camera_pos),
-            Point3::from_vec(camera_target),
-            camera_up,
-        );
+        // let radius = 10f32;
+        // cam.set_x(radius * glfw.get_time().sin() as f32);
+        // cam.set_z(radius * glfw.get_time().cos() as f32);
 
         unsafe {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
-
-        // let model: Matrix4<f32> =
-        // Matrix4::from_axis_angle(vec3(0.5, 1.0, 0.0), Rad(glfw.get_time() as f32));
-        // let view: Matrix4<f32> = Matrix4::from_translation(vec3(0., 0., -3.));
+        let view = cam.get_view();
         let projection: Matrix4<f32> =
             perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
 
@@ -171,10 +182,13 @@ fn main() {
         let texs = Textures::new([&texture1, &texture2]).unwrap();
         texs.bind();
 
-        for (i, pos) in cube_positions.iter().enumerate() {
-            let mut model = Matrix4::from_translation(*pos);
-            let angle = 20.0 * i as f32;
-            model = model * Matrix4::from_axis_angle(vec3(1.0, 0.3, 0.5).normalize(), Deg(angle));
+        for (_i, pos) in cube_positions.iter().enumerate() {
+            let model = Matrix4::from_translation(*pos);
+            // model = model
+            //     * Matrix4::from_axis_angle(
+            //         vec3(1.0, 0.3, 0.5).normalize(),
+            //         Rad(glfw.get_time() as f32),
+            //     );
             shader.set_uniform("model", model).unwrap();
             vbo_vba.draw_arrays(0, 36);
         }
@@ -186,6 +200,40 @@ fn main() {
     }
 }
 
+fn process_input(window: &mut glfw::Window) -> Option<CameraDirection> {
+    if window.get_key(Key::Escape) == Action::Press {
+        window.set_should_close(true);
+        return None;
+    }
+    let mut dirs = CameraDirection::new();
+
+    if window.get_key(Key::W) == Action::Press {
+        dirs.toggle_forward();
+    }
+
+    if window.get_key(Key::S) == Action::Press {
+        dirs.toggle_backward();
+    }
+
+    if window.get_key(Key::D) == Action::Press {
+        dirs.toggle_right();
+    }
+
+    if window.get_key(Key::A) == Action::Press {
+        dirs.toggle_left();
+    }
+
+    if window.get_key(Key::Space) == Action::Press {
+        dirs.toggle_up();
+    }
+
+    if window.get_key(Key::Tab) == Action::Press {
+        dirs.toggle_down();
+    }
+
+    return Some(dirs);
+}
+
 fn process_events(window: &mut glfw::Window, events: &Receiver<(f64, glfw::WindowEvent)>) {
     for (_, event) in glfw::flush_messages(events) {
         match event {
@@ -194,9 +242,9 @@ fn process_events(window: &mut glfw::Window, events: &Receiver<(f64, glfw::Windo
                 // height will be significantly larger than specified on retina displays.
                 unsafe { gl::Viewport(0, 0, width, height) }
             }
-            glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                window.set_should_close(true)
-            }
+            // glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
+            //     window.set_should_close(true)
+            // }
             _ => {}
         }
     }
