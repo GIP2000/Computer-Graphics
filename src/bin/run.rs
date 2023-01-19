@@ -5,7 +5,6 @@ use learn_opengl::gls::buffers::{Attribute, Bindable, VOs};
 use learn_opengl::gls::shader::{Shader, ShaderProgram};
 use learn_opengl::window::Window;
 use std::path::Path;
-use std::sync::mpsc::Receiver;
 
 use cgmath::{perspective, vec3, Deg, Matrix4, Point3};
 
@@ -51,16 +50,24 @@ void main()
 
 fn main() {
     let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl").unwrap();
-    let mut delta_time: f32;
-    let mut last_frame: f32 = 0.;
-
-    // -- Under here is good for now
-
     let v_shader =
         Shader::new(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER).expect("Failed to Compile V Shader");
     let f_shader = Shader::new(FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER)
         .expect("Failed to Compile F Shader");
     let shader = ShaderProgram::new([v_shader, f_shader]).expect("Failed to Create Shader Program");
+
+    let cube_positions = [
+        vec3(0.0, 0.0, 0.0),
+        vec3(2.0, 5.0, -15.0),
+        vec3(-1.5, -2.2, -2.5),
+        vec3(-3.8, -2.0, -12.3),
+        vec3(2.4, -0.4, -3.5),
+        vec3(-1.7, 3.0, -7.5),
+        vec3(1.3, -2.0, -2.5),
+        vec3(1.5, 2.0, -2.5),
+        vec3(1.5, 0.2, -1.5),
+        vec3(-1.3, 1.0, -1.5),
+    ];
 
     let verts: [f32; 180] = [
         -0.5, -0.5, -0.5, 0.0, 0.0, 0.5, -0.5, -0.5, 1.0, 0.0, 0.5, 0.5, -0.5, 1.0, 1.0, 0.5, 0.5,
@@ -75,21 +82,9 @@ fn main() {
         -0.5, 0.0, 1.0, 0.5, 0.5, -0.5, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0, 0.0,
         -0.5, 0.5, 0.5, 0.0, 0.0, -0.5, 0.5, -0.5, 0.0, 1.0,
     ];
-    let cube_positions = [
-        vec3(0.0, 0.0, 0.0),
-        vec3(2.0, 5.0, -15.0),
-        vec3(-1.5, -2.2, -2.5),
-        vec3(-3.8, -2.0, -12.3),
-        vec3(2.4, -0.4, -3.5),
-        vec3(-1.7, 3.0, -7.5),
-        vec3(1.3, -2.0, -2.5),
-        vec3(1.5, 2.0, -2.5),
-        vec3(1.5, 0.2, -1.5),
-        vec3(-1.3, 1.0, -1.5),
-    ];
-
     let attributes = [
         Attribute {
+            // cords
             location: 0,
             size: 3,
             normalized: false,
@@ -97,6 +92,7 @@ fn main() {
             offset: 0,
         },
         Attribute {
+            // texture
             location: 1,
             size: 2,
             normalized: false,
@@ -114,7 +110,7 @@ fn main() {
         gl::RGB,
         None,
     )
-    .expect("Failed to lode texture");
+    .expect("Failed to load texture");
 
     let face_texture = image::open(&Path::new("awesomeface.png")).unwrap();
     let texture2 = Texture2D::new(
