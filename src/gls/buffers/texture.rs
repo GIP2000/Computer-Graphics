@@ -1,4 +1,4 @@
-use super::Bindable;
+use super::bindable::Bindable;
 use anyhow::{bail, Context, Result};
 use gl::types::*;
 use std::ffi::c_void;
@@ -8,13 +8,14 @@ pub struct Textures<'a, const N: usize> {
 }
 
 impl<'a, const N: usize> Bindable for Textures<'a, N> {
-    fn bind(&self) {
+    fn bind(&self) -> Result<()> {
         for (i, texture) in self.textures.iter().enumerate() {
             unsafe {
                 gl::ActiveTexture(gl::TEXTURE0 + i as u32);
-            }
-            texture.bind();
+            };
+            texture.bind()?;
         }
+        Ok(())
     }
 }
 
@@ -37,10 +38,11 @@ pub struct Texture2D {
 }
 
 impl Bindable for Texture2D {
-    fn bind(&self) {
+    fn bind(&self) -> Result<()> {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.tex);
         }
+        Ok(())
     }
 }
 

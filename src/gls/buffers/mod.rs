@@ -1,13 +1,12 @@
+pub mod bindable;
 pub mod ebo;
 pub mod texture;
+
 use super::gl_size::GLSize;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+use bindable::Bindable;
 use gl::types::*;
 use std::os::raw::c_void;
-
-pub trait Bindable {
-    fn bind(&self);
-}
 
 unsafe fn make_buffer<T: GLSize>(data: &[T], buffer_type: GLenum, usage: GLenum) -> Result<u32> {
     let mut buffer = 0;
@@ -27,9 +26,9 @@ unsafe fn make_buffer<T: GLSize>(data: &[T], buffer_type: GLenum, usage: GLenum)
 }
 
 pub struct VOs {
-    pub vao: u32,
-    pub vbo: u32,
-    pub shape: GLenum,
+    vbo: u32,
+    vao: u32,
+    shape: GLenum,
 }
 
 pub struct Attribute {
@@ -100,20 +99,22 @@ impl VOs {
         self.shape = shape;
     }
 
-    pub fn draw_arrays(&self, start: i32, len: u32) {
+    pub fn draw_arrays(&self, start: i32, len: u32) -> Result<()> {
         let len = len as i32;
-        self.bind();
+        self.bind()?;
         unsafe {
             gl::DrawArrays(self.shape, start, len);
         }
+        Ok(())
     }
 }
 
 impl Bindable for VOs {
-    fn bind(&self) {
+    fn bind(&self) -> Result<()> {
         unsafe {
             gl::BindVertexArray(self.vao);
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
         }
+        Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use glfw::{Action, Context, Key};
 use learn_opengl::camera::{Camera, CameraDirection, CameraDirectionTrait};
 use learn_opengl::gls::buffers::texture::{Texture2D, Textures};
-use learn_opengl::gls::buffers::{Attribute, Bindable, VOs};
+use learn_opengl::gls::buffers::{bindable::Bindable, Attribute, VOs};
 use learn_opengl::gls::shader::{Shader, ShaderProgram};
 use learn_opengl::window::Window;
 use std::path::Path;
@@ -152,12 +152,12 @@ fn main() {
 
         shader.use_program();
         let texs = Textures::new([&texture1, &texture2]).unwrap();
-        texs.bind();
+        texs.bind().unwrap();
 
         for (_i, pos) in cube_positions.iter().enumerate() {
             let model = Matrix4::from_translation(*pos);
             shader.set_uniform("model", model).unwrap();
-            vbo_vba.draw_arrays(0, 36);
+            vbo_vba.draw_arrays(0, 36).unwrap();
         }
     });
 }
@@ -217,5 +217,5 @@ fn process_events(w: &mut Window, cam: &mut Camera, proj: &mut Matrix4<f32>) -> 
             _ => {}
         };
     }
-    false
+    return false;
 }

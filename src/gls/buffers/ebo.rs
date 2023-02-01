@@ -1,4 +1,4 @@
-use super::Bindable;
+use super::bindable::Bindable;
 use super::{make_buffer, GLSize, VOs};
 use anyhow::Result;
 use std::ffi::c_void;
@@ -18,10 +18,11 @@ impl<T: GLSize> Drop for EBO<T> {
 }
 
 impl<T: GLSize> Bindable for EBO<T> {
-    fn bind(&self) {
+    fn bind(&self) -> Result<()> {
         unsafe {
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
         };
+        Ok(())
     }
 }
 
