@@ -102,7 +102,7 @@ fn main() {
     ];
     let vbo_vba = VOs::new(&verts, &attributes, gl::TRIANGLES).expect("vbo or vba failed to bind");
 
-    let container_texture = image::open(&Path::new("container.jpg")).unwrap();
+    let container_texture = image::open(&Path::new("./Learn-Opengl/container.jpg")).unwrap();
     let texture1 = Texture2D::new(
         container_texture,
         [gl::REPEAT, gl::REPEAT],
@@ -112,7 +112,7 @@ fn main() {
     )
     .expect("Failed to load texture");
 
-    let face_texture = image::open(&Path::new("awesomeface.png")).unwrap();
+    let face_texture = image::open(&Path::new("./Learn-Opengl/awesomeface.png")).unwrap();
     let texture2 = Texture2D::new(
         face_texture.flipv(),
         [gl::REPEAT, gl::REPEAT],

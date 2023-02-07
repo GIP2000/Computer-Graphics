@@ -36,9 +36,9 @@ impl<T: GLSize> EBO<T> {
         });
     }
 
-    pub fn draw_elements(&self, vo: &VOs, count: u32, offset: usize) {
-        vo.bind();
-        self.bind();
+    pub fn draw_elements(&self, vo: &VOs, count: u32, offset: usize) -> Result<()> {
+        vo.bind()?;
+        self.bind()?;
         unsafe {
             gl::DrawElements(
                 vo.shape,
@@ -47,5 +47,6 @@ impl<T: GLSize> EBO<T> {
                 (offset * T::gl_size_of()) as *const c_void,
             )
         }
+        return Ok(());
     }
 }
