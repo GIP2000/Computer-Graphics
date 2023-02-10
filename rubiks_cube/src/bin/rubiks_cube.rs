@@ -1,7 +1,6 @@
 use cgmath::{perspective, vec3, vec4, Deg, Matrix4, Point3, Rad, Vector4};
 use glfw::{Action, Key};
 use learn_opengl::{
-    camera::{Camera, CameraDirection, CameraDirectionTrait},
     gls::{
         buffers::{Attribute, VOs},
         shader::{Shader, ShaderProgram},
@@ -60,38 +59,25 @@ fn main() {
     let mut projection: Matrix4<f32> =
         perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
     shader.set_uniform("projection", projection).unwrap();
-    // let view: Matrix4<f32> = Matrix4::look_at_rh(
-    //     Point3::new(0., 3., 5.),
-    //     Point3::new(1., 1., 0.),
-    //     vec3(0., 1., 0.),
-    // );
-    // shader.set_uniform("view", view).unwrap();
-
-    let mut cam = Camera::new(
-        Point3::<f32>::new(0., 5., 2.),
-        90f32,
-        0f32,
-        vec3(2.5, 2.5, 2.5),
+    let view: Matrix4<f32> = Matrix4::look_at_rh(
+        Point3::new(0., 3., 5.),
+        Point3::new(1., 1., 0.),
+        vec3(0., 1., 0.),
     );
+    shader.set_uniform("view", view).unwrap();
+
+    // let mut cam = Camera::new(
+    //     Point3::<f32>::new(0., 5., 2.),
+    //     90f32,
+    //     0f32,
+    //     vec3(2.5, 2.5, 2.5),
+    // );
     let mut cube_state = RubiksCube::new();
     let mut last_pressed = false;
     let mut last_release = false;
     window.app_loop(|mut w| {
-        process_events(&mut w, &mut cam, &mut projection);
+        process_events(&mut w, &mut projection);
 
-        let input_data = process_input(&mut w.window);
-        if let Some((dir, press_shift, release_shift)) = input_data {
-            if dir != 0 {
-                cam.translate_camera(dir, w.delta_time);
-            }
-            if press_shift && !last_pressed {
-                cube_state.rotate(0, false, true);
-            }
-            last_pressed = press_shift;
-            last_release = release_shift;
-        }
-
-        let view = cam.get_view();
         shader.set_uniform("view", view).unwrap();
 
         for (i, block) in cube_state.iter().enumerate() {
@@ -108,46 +94,7 @@ fn main() {
     });
 }
 
-fn process_input(window: &mut glfw::Window) -> Option<(CameraDirection, bool, bool)> {
-    if window.get_key(Key::Escape) == Action::Press {
-        window.set_should_close(true);
-        return None;
-    }
-    let mut dirs = CameraDirection::new();
-
-    if window.get_key(Key::W) == Action::Press {
-        dirs.toggle_forward();
-    }
-
-    if window.get_key(Key::S) == Action::Press {
-        dirs.toggle_backward();
-    }
-
-    if window.get_key(Key::D) == Action::Press {
-        dirs.toggle_right();
-    }
-
-    if window.get_key(Key::A) == Action::Press {
-        dirs.toggle_left();
-    }
-
-    if window.get_key(Key::Space) == Action::Press {
-        dirs.toggle_up();
-    }
-
-    let press_shift = window.get_key(Key::Q) == Action::Press;
-    let release_shift = window.get_key(Key::Q) == Action::Release;
-
-    if window.get_key(Key::LeftShift) == Action::Press
-        || window.get_key(Key::RightShift) == Action::Press
-    {
-        dirs.toggle_down();
-    }
-
-    return Some((dirs, press_shift, release_shift));
-}
-
-fn process_events(w: &mut Window, cam: &mut Camera, proj: &mut Matrix4<f32>) -> bool {
+fn process_events(w: &mut Window, proj: &mut Matrix4<f32>) -> bool {
     glfw::flush_messages(&w.events)
         .into_iter()
         .for_each(|(_, event)| {
@@ -163,9 +110,7 @@ fn process_events(w: &mut Window, cam: &mut Camera, proj: &mut Matrix4<f32>) -> 
                         gl::Viewport(0, 0, width, height);
                     };
                 }
-                glfw::WindowEvent::CursorPos(x, y) => {
-                    cam.move_point_pos(x as f32, y as f32);
-                }
+                glfw::WindowEvent::CursorPos(x, y) => {}
                 _ => {}
             };
         });

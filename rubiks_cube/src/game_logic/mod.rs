@@ -30,6 +30,7 @@ impl From<Colors> for Vector4<f32> {
         color.convert_to_rbga()
     }
 }
+
 impl From<&Colors> for Vector4<f32> {
     fn from(color: &Colors) -> Self {
         color.convert_to_rbga()
