@@ -8,16 +8,23 @@ const SPEED: f32 = 0.5;
 pub struct Camera {
     pos: Vector3<f32>,
     target: Point3<f32>,
-    last: Vector2<f32>,
+    last_mouse: Vector2<f32>,
 }
 
 impl Camera {
-    pub fn new(radius: f32, target: Point3<f32>) -> Self {
+    pub fn new(pos: Point3<f32>, target: Point3<f32>) -> Self {
         Self {
-            pos: vec3(radius, 0., 0.),
+            pos: Self::convert_to_spherical(pos),
             target,
-            last: vec2(0., 0.),
+            last_mouse: vec2(0., 0.),
         }
+    }
+
+    fn convert_to_spherical(ct: Point3<f32>) -> Vector3<f32> {
+        let r = (ct.x.powf(2.) + ct.y.powf(2.) + ct.z.powf(2.)).sqrt();
+        let phi = (ct.z / ct.x).atan2(ct.x);
+        let theta = (ct.y / r).acos();
+        vec3(r, phi, theta)
     }
 
     fn convert_to_cartesian(sc: Vector3<f32>) -> Point3<f32> {
@@ -37,12 +44,12 @@ impl Camera {
     }
 
     pub fn set_last(&mut self, x: f32, y: f32) {
-        self.last = vec2(x, y);
+        self.last_mouse = vec2(x, y);
     }
 
     pub fn pan(&mut self, x: f32, y: f32, delta_time: f32) {
-        let dx = (self.last.x - x) * SPEED;
-        let dy = (self.last.y - y) * SPEED;
+        let dx = (self.last_mouse.x - x) * SPEED;
+        let dy = (self.last_mouse.y - y) * SPEED;
         if dx == 0f32 || dy == 0f32 {
             return;
         }
@@ -50,7 +57,7 @@ impl Camera {
         self.pos.y -= dx * delta_time;
         self.pos.z = (self.pos.z - dy * delta_time).clamp(-1.5, 1.5);
 
-        self.last.x = x;
-        self.last.y = y;
+        self.last_mouse.x = x;
+        self.last_mouse.y = y;
     }
 }

@@ -1,4 +1,4 @@
-use cgmath::{perspective, vec3, vec4, Deg, Matrix4, Point3, Rad, Vector4};
+use cgmath::{perspective, vec3, vec4, Deg, Matrix4, Point3, Rad, SquareMatrix, Vector4};
 use glfw::{Action, Key};
 use learn_opengl::{
     gls::{
@@ -25,17 +25,21 @@ fn main() {
     let f_shader =
         Shader::new(FRAG_SHADER_SOURCE, gl::FRAGMENT_SHADER).expect("Failed to compile F Shader");
     let shader = ShaderProgram::new([v_shader, f_shader]).expect("Failed to Create Shader Program");
-    let cube_verts: [f32; 144] = [
-        -0.5, -0.5, -0.5, 1., 0.5, -0.5, -0.5, 1., 0.5, 0.5, -0.5, 1., 0.5, 0.5, -0.5, 1., -0.5,
-        0.5, -0.5, 1., -0.5, -0.5, -0.5, 1., -0.5, -0.5, 0.5, 0., 0.5, -0.5, 0.5, 0., 0.5, 0.5,
-        0.5, 0., 0.5, 0.5, 0.5, 0., -0.5, 0.5, 0.5, 0., -0.5, -0.5, 0.5, 0., -0.5, 0.5, 0.5, 2.,
-        -0.5, 0.5, -0.5, 2., -0.5, -0.5, -0.5, 2., -0.5, -0.5, -0.5, 2., -0.5, -0.5, 0.5, 2., -0.5,
-        0.5, 0.5, 2., 0.5, 0.5, 0.5, 3., 0.5, 0.5, -0.5, 3., 0.5, -0.5, -0.5, 3., 0.5, -0.5, -0.5,
-        3., 0.5, -0.5, 0.5, 3., 0.5, 0.5, 0.5, 3., -0.5, -0.5, -0.5, 5., 0.5, -0.5, -0.5, 5., 0.5,
-        -0.5, 0.5, 5., 0.5, -0.5, 0.5, 5., -0.5, -0.5, 0.5, 5., -0.5, -0.5, -0.5, 5., -0.5, 0.5,
-        -0.5, 4., 0.5, 0.5, -0.5, 4., 0.5, 0.5, 0.5, 4., 0.5, 0.5, 0.5, 4., -0.5, 0.5, 0.5, 4.,
-        -0.5, 0.5, -0.5, 4.,
+    let face_verts: [f32; 18] = [
+        -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5,
+        0.5,
     ];
+    // let cube_verts: [f32; 144] = [
+    //     -0.5, -0.5, -0.5, 1., 0.5, -0.5, -0.5, 1., 0.5, 0.5, -0.5, 1., 0.5, 0.5, -0.5, 1., -0.5,
+    //     0.5, -0.5, 1., -0.5, -0.5, -0.5, 1., -0.5, -0.5, 0.5, 0., 0.5, -0.5, 0.5, 0., 0.5, 0.5,
+    //     0.5, 0., 0.5, 0.5, 0.5, 0., -0.5, 0.5, 0.5, 0., -0.5, -0.5, 0.5, 0., -0.5, 0.5, 0.5, 2.,
+    //     -0.5, 0.5, -0.5, 2., -0.5, -0.5, -0.5, 2., -0.5, -0.5, -0.5, 2., -0.5, -0.5, 0.5, 2., -0.5,
+    //     0.5, 0.5, 2., 0.5, 0.5, 0.5, 3., 0.5, 0.5, -0.5, 3., 0.5, -0.5, -0.5, 3., 0.5, -0.5, -0.5,
+    //     3., 0.5, -0.5, 0.5, 3., 0.5, 0.5, 0.5, 3., -0.5, -0.5, -0.5, 5., 0.5, -0.5, -0.5, 5., 0.5,
+    //     -0.5, 0.5, 5., 0.5, -0.5, 0.5, 5., -0.5, -0.5, 0.5, 5., -0.5, -0.5, -0.5, 5., -0.5, 0.5,
+    //     -0.5, 4., 0.5, 0.5, -0.5, 4., 0.5, 0.5, 0.5, 4., 0.5, 0.5, 0.5, 4., -0.5, 0.5, 0.5, 4.,
+    //     -0.5, 0.5, -0.5, 4.,
+    // ];
 
     let attributes = [
         Attribute {
@@ -43,35 +47,27 @@ fn main() {
             location: 0,
             size: 3,
             normalized: false,
-            stride: 4,
+            stride: 3,
             offset: 0,
         },
-        Attribute {
-            // face
-            location: 1,
-            size: 1,
-            normalized: false,
-            stride: 4,
-            offset: 3,
-        },
+        // Attribute {
+        //     // face
+        //     location: 1,
+        //     size: 1,
+        //     normalized: false,
+        //     stride: 4,
+        //     offset: 3,
+        // },
     ];
     let cube =
-        VOs::new(&cube_verts, &attributes, gl::TRIANGLES).expect("vbo or vba failed to bind");
+        VOs::new(&face_verts, &attributes, gl::TRIANGLES).expect("vbo or vba failed to bind");
 
     let mut projection: Matrix4<f32> =
         perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
     shader.set_uniform("projection", projection).unwrap();
-    let mut cam = Camera::new(10., Point3::new(1., 1., 0.));
-    // let view: Matrix4<f32> = Matrix4::look_at_rh(
-    //     Point3::new(0., 3., 5.),
-    //     Point3::new(1., 1., 0.),
-    //     vec3(0., 1., 0.),
-    // );
-    // shader.set_uniform("view", view).unwrap();
+    let mut cam = Camera::new(Point3::new(1., 1., 10.), Point3::new(1., 1., 1.));
 
-    let mut cube_state = RubiksCube::new();
-    let mut last_pressed = false;
-    let mut last_release = false;
+    let cube_state = RubiksCube::new();
     let mut last_left = false;
     window.app_loop(|mut w| {
         let (is_left_click, is_right_click) = process_input(&w.window);
@@ -81,15 +77,16 @@ fn main() {
         shader.set_uniform("view", cam.get_view()).unwrap();
 
         for (i, block) in cube_state.iter().enumerate() {
-            shader.set_uniform("uColor", block.get_colors()).unwrap();
-            let y = i % 3;
-            let x = (i / 3) % 3;
-            let z = i / 9;
-            let model: Matrix4<f32> =
-                Matrix4::from_translation(vec3(x as f32, y as f32, -(z as f32)));
-
-            shader.set_uniform("model", model).unwrap();
-            cube.draw_arrays(0, 36).unwrap();
+            for (y, row) in block.iter().enumerate() {
+                for (x, color) in row.iter().enumerate() {
+                    let model = block.convert_cords(x as f32, y as f32) * block.get_rotation();
+                    shader.set_uniform("model", model).unwrap();
+                    shader
+                        .set_uniform::<Vector4<f32>>("uColor", color.into())
+                        .unwrap();
+                    cube.draw_arrays(0, 6).unwrap();
+                }
+            }
         }
     });
 }

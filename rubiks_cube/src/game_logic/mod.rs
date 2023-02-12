@@ -1,4 +1,4 @@
-use cgmath::{vec4, Vector4};
+use cgmath::{vec3, vec4, Deg, Matrix4, Rotation, SquareMatrix, Vector4};
 use std::slice::Iter;
 #[derive(Clone, Debug)]
 pub enum Colors {
@@ -37,27 +37,41 @@ impl From<&Colors> for Vector4<f32> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Block {
-    colors: [Colors; 6],
+pub struct Face {
+    faces: [[Colors; 3]; 3],
+    rotation: Matrix4<f32>,
+    convert_cord: Box<dyn Fn(f32, f32) -> Matrix4<f32>>,
 }
-// FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN
-impl Block {
-    fn new(colors: [Colors; 6]) -> Self {
-        Self { colors }
+
+impl Face {
+    fn new(
+        rotation: Matrix4<f32>,
+        faces: [[Colors; 3]; 3],
+        convert_cord: Box<dyn Fn(f32, f32) -> Matrix4<f32>>,
+    ) -> Self {
+        Self {
+            faces,
+            rotation,
+            convert_cord,
+        }
     }
-    pub fn get_colors(&self) -> Vec<Vector4<f32>> {
-        self.colors.iter().map(|x| x.into()).collect()
+    pub fn iter(&self) -> Iter<[Colors; 3]> {
+        self.faces.iter()
+    }
+    pub fn get_rotation(&self) -> Matrix4<f32> {
+        self.rotation
+    }
+    pub fn convert_cords(&self, x: f32, y: f32) -> Matrix4<f32> {
+        return (self.convert_cord)(x, y);
     }
 }
 
-#[derive(Debug)]
 pub struct RubiksCube {
-    blocks: [Block; 27],
+    blocks: [Face; 6],
 }
 
 impl RubiksCube {
-    pub fn iter(&self) -> Iter<Block> {
+    pub fn iter(&self) -> Iter<Face> {
         return self.blocks.iter();
     }
 
@@ -65,89 +79,53 @@ impl RubiksCube {
         use Colors::*;
         Self {
             blocks: [
-                Block::new([WHITE, EMPTY, BLUE, EMPTY, EMPTY, YELLOW]),
-                Block::new([WHITE, EMPTY, BLUE, EMPTY, EMPTY, EMPTY]),
-                Block::new([WHITE, EMPTY, BLUE, EMPTY, RED, EMPTY]),
-                //
-                Block::new([WHITE, EMPTY, EMPTY, EMPTY, EMPTY, YELLOW]),
-                Block::new([WHITE, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY]),
-                Block::new([WHITE, EMPTY, EMPTY, EMPTY, RED, EMPTY]),
-                //
-                Block::new([WHITE, EMPTY, EMPTY, GREEN, EMPTY, YELLOW]),
-                Block::new([WHITE, EMPTY, EMPTY, GREEN, EMPTY, EMPTY]),
-                Block::new([WHITE, EMPTY, EMPTY, GREEN, RED, EMPTY]),
-                //
-                Block::new([EMPTY, EMPTY, BLUE, EMPTY, EMPTY, YELLOW]),
-                Block::new([EMPTY, EMPTY, BLUE, EMPTY, EMPTY, EMPTY]),
-                Block::new([EMPTY, EMPTY, BLUE, EMPTY, RED, EMPTY]),
-                //
-                Block::new([EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, YELLOW]),
-                Block::new([EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY]),
-                Block::new([EMPTY, EMPTY, EMPTY, EMPTY, RED, EMPTY]),
-                //
-                Block::new([EMPTY, EMPTY, EMPTY, GREEN, EMPTY, YELLOW]),
-                Block::new([EMPTY, EMPTY, EMPTY, GREEN, EMPTY, EMPTY]),
-                Block::new([EMPTY, EMPTY, EMPTY, GREEN, RED, EMPTY]),
-                //
-                Block::new([EMPTY, GREY, BLUE, EMPTY, EMPTY, YELLOW]),
-                Block::new([EMPTY, GREY, BLUE, EMPTY, EMPTY, EMPTY]),
-                Block::new([EMPTY, GREY, BLUE, EMPTY, RED, EMPTY]),
-                //
-                Block::new([EMPTY, GREY, EMPTY, EMPTY, EMPTY, YELLOW]),
-                Block::new([EMPTY, GREY, EMPTY, EMPTY, EMPTY, EMPTY]),
-                Block::new([EMPTY, GREY, EMPTY, EMPTY, RED, EMPTY]),
-                //
-                Block::new([EMPTY, GREY, EMPTY, GREEN, EMPTY, YELLOW]),
-                Block::new([EMPTY, GREY, EMPTY, GREEN, EMPTY, EMPTY]),
-                Block::new([EMPTY, GREY, EMPTY, GREEN, RED, EMPTY]),
+                Face::new(
+                    Matrix4::identity(),
+                    [
+                        [WHITE, WHITE, WHITE],
+                        [WHITE, WHITE, WHITE],
+                        [WHITE, WHITE, WHITE],
+                    ],
+                    Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, y as f32, -1.))),
+                ),
+                Face::new(
+                    Matrix4::identity(),
+                    [[GREY, GREY, GREY], [GREY, GREY, GREY], [GREY, GREY, GREY]],
+                    Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, y as f32, 2.))),
+                ),
+                Face::new(
+                    Matrix4::from_angle_y(Deg(90.)),
+                    [[BLUE, BLUE, BLUE], [BLUE, BLUE, BLUE], [BLUE, BLUE, BLUE]],
+                    Box::new(|x, y| Matrix4::from_translation(vec3(-1., y as f32, x as f32))),
+                ),
+                Face::new(
+                    Matrix4::from_angle_y(Deg(90.)),
+                    [
+                        [GREEN, GREEN, GREEN],
+                        [GREEN, GREEN, GREEN],
+                        [GREEN, GREEN, GREEN],
+                    ],
+                    Box::new(|x, y| Matrix4::from_translation(vec3(2., y as f32, x as f32))),
+                ),
+                Face::new(
+                    Matrix4::from_angle_x(Deg(90.)),
+                    [
+                        [YELLOW, YELLOW, YELLOW],
+                        [YELLOW, YELLOW, YELLOW],
+                        [YELLOW, YELLOW, YELLOW],
+                    ],
+                    Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, 0., y as f32))),
+                ),
+                Face::new(
+                    Matrix4::from_angle_x(Deg(90.)),
+                    [[RED, RED, RED], [RED, RED, RED], [RED, RED, RED]],
+                    Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, 3., y as f32))),
+                ),
             ],
         }
     }
 
-    pub fn rotate(&mut self, mut start: usize, is_horizontal: bool, is_clockwise: bool) {
-        if is_horizontal {
-            start = start % 3;
-        } else {
-            start = start / 9;
-        }
-
-        let step = if is_horizontal { 2 } else { 1 };
-
-        let mat: Vec<_> = self
-            .blocks
-            .iter()
-            .skip(start)
-            .step_by(step)
-            .take(9)
-            .collect();
-        println!("mat: {:?}", mat);
-
-        let center = mat[4];
-        let mut mat = vec![
-            mat[0], mat[1], mat[2], mat[5], mat[8], mat[7], mat[6], mat[3],
-        ];
-        println!("mat ordered: {:?}", mat);
-        if is_clockwise {
-            mat.rotate_right(2);
-        } else {
-            mat.rotate_left(2);
-        }
-        mat.push(center);
-        println!("mat rotated: {:?}", mat);
-        let mat = vec![
-            mat[0], mat[1], mat[2], mat[7], mat[8], mat[3], mat[6], mat[5], mat[4],
-        ];
-        let mat = mat.into_iter().cloned().collect::<Vec<_>>();
-
-        for (old_block, new_block) in self
-            .blocks
-            .iter_mut()
-            .skip(start)
-            .step_by(step)
-            .take(9)
-            .zip(mat)
-        {
-            *old_block = new_block;
-        }
+    pub fn rotate(&mut self) {
+        todo!("")
     }
 }
