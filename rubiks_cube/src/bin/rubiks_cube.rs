@@ -1,4 +1,6 @@
-use cgmath::{perspective, Deg, Matrix4, Point3, Vector4};
+use std::ops::Mul;
+
+use cgmath::{perspective, vec3, Deg, Matrix, Matrix4, Point3, SquareMatrix, Vector4};
 use glfw::{Action, Key};
 use learn_opengl::{
     gls::{
@@ -7,7 +9,10 @@ use learn_opengl::{
     },
     window::Window,
 };
-use rubiks_cube::{camera::Camera, game_logic::RubiksCube};
+use rubiks_cube::{
+    camera::Camera,
+    game_logic::{RubiksCube, ShadowPlane},
+};
 
 const SCR_WIDTH: u32 = 1600;
 const SCR_HEIGHT: u32 = 1200;
@@ -45,15 +50,68 @@ fn main() {
 
     let mut cube_state = RubiksCube::new();
     let mut last_left = false;
+    const ANIMATION_DURATION: f64 = 0.5;
+    let mut is_animating = false;
+    let mut start_time: f64 = 0.;
+    let mut rotating_face: usize = 8;
     window.app_loop(|mut w| {
-        let (three_clicked, is_left_click, is_right_click) = process_input(&w.window);
+        if is_animating {
+            let current_time = w.glfw.get_time() - start_time;
+            if current_time >= ANIMATION_DURATION {
+                is_animating = false;
+                cube_state.rotate(rotating_face, true).unwrap();
+            } else {
+                let shadow_plane_cords: ShadowPlane = rotating_face.try_into().unwrap();
+                for (face, block) in cube_state.iter().enumerate() {
+                    for (y, row) in block.iter().enumerate() {
+                        for (x, color) in row.iter().enumerate() {
+                            let is_shadow_plane = shadow_plane_cords
+                                .plane
+                                .iter()
+                                .flat_map(|(f, cords)| cords.map(|(y, x)| (f, y, x)))
+                                .find(|&(&sf, sy, sx)| face == sf && sy == y && sx == x)
+                                .map(|_| true)
+                                .unwrap_or(false);
+
+                            let model = if face == rotating_face || is_shadow_plane {
+                                // translate to the center
+                                // rotate by percentage
+                                // translate back
+                                block.convert_cords(x as f32, y as f32)
+                                    * cube_state
+                                        .get_rotate_matrix(
+                                            rotating_face,
+                                            face,
+                                            x as f32,
+                                            y as f32,
+                                            current_time / ANIMATION_DURATION,
+                                        )
+                                        .unwrap()
+                                    * block.get_rotation()
+                            } else {
+                                block.convert_cords(x as f32, y as f32) * block.get_rotation()
+                            };
+                            shader.set_uniform("model", model).unwrap();
+                            shader
+                                .set_uniform::<Vector4<f32>>("uColor", color.into())
+                                .unwrap();
+                            cube.draw_arrays(0, 6).unwrap();
+                        }
+                    }
+                }
+                return;
+            }
+        }
+        let (rotate_clicked, is_left_click, is_right_click) = process_input(&w.window);
         process_events(&mut w, &mut projection, &mut cam, is_left_click, last_left);
         last_left = is_left_click;
 
         shader.set_uniform("view", cam.get_view()).unwrap();
 
-        if three_clicked {
-            cube_state.rotate(8, true).unwrap();
+        if rotate_clicked {
+            start_time = w.glfw.get_time();
+            is_animating = true;
+            return;
         }
 
         for (i, block) in cube_state.iter().enumerate() {
@@ -90,7 +148,7 @@ fn process_events(
         .for_each(|(_, event)| {
             match event {
                 glfw::WindowEvent::FramebufferSize(width, height) => {
-                    // make sure the viewport matches the new window dimensions; note that width and
+                    // make sure th viewport matches the new window dimensions; note that width and
                     // height will be significantly larger than specified on retina displays.
                     w.width = width as u32;
                     w.height = height as u32;

@@ -1,15 +1,16 @@
 mod colors;
 use anyhow::{bail, Context, Result};
-use cgmath::{vec3, Deg, Matrix4, SquareMatrix};
+use cgmath::{vec3, Deg, Matrix4, Rad, SquareMatrix, Vector3};
 use colors::Colors;
 use rand::Rng;
 use std::{
     collections::VecDeque,
     convert::{TryFrom, TryInto},
+    f32::consts::PI,
     slice::Iter,
 };
 
-struct ShadowPlane {
+pub struct ShadowPlane {
     //       face  ,  y    , x
     pub plane: [(usize, [(usize, usize); 3]); 4],
 }
@@ -46,17 +47,17 @@ impl TryFrom<usize> for ShadowPlane {
             3 => Ok(Self {
                 plane: [
                     (0, [(2, 0), (2, 1), (2, 2)]),
-                    (4, [(0, 2), (1, 2), (2, 2)]),
-                    (5, [(2, 2), (2, 1), (2, 0)]),
                     (2, [(0, 2), (1, 2), (2, 2)]),
+                    (5, [(2, 2), (2, 1), (2, 0)]),
+                    (4, [(0, 2), (1, 2), (2, 2)]),
                 ],
             }),
             4 => Ok(Self {
                 plane: [
                     (0, [(0, 2), (1, 2), (2, 2)]),
-                    (1, [(0, 2), (1, 2), (2, 2)]),
-                    (5, [(0, 2), (1, 2), (2, 2)]),
                     (3, [(0, 2), (1, 2), (2, 2)]),
+                    (5, [(0, 2), (1, 2), (2, 2)]),
+                    (1, [(0, 2), (1, 2), (2, 2)]),
                 ],
             }),
             5 => Ok(Self {
@@ -70,25 +71,25 @@ impl TryFrom<usize> for ShadowPlane {
             6 => Ok(Self {
                 plane: [
                     (0, [(1, 0), (1, 1), (1, 2)]),
-                    (4, [(0, 1), (1, 1), (2, 1)]),
-                    (5, [(1, 0), (1, 1), (1, 2)]),
                     (2, [(0, 1), (1, 1), (2, 1)]),
+                    (5, [(1, 0), (1, 1), (1, 2)]),
+                    (4, [(0, 1), (1, 1), (2, 1)]),
                 ],
             }),
             7 => Ok(Self {
                 plane: [
                     (3, [(1, 0), (1, 1), (1, 2)]),
-                    (4, [(1, 0), (1, 1), (1, 2)]),
-                    (1, [(1, 0), (1, 1), (1, 2)]),
                     (2, [(1, 0), (1, 1), (1, 2)]),
+                    (1, [(1, 0), (1, 1), (1, 2)]),
+                    (4, [(1, 0), (1, 1), (1, 2)]),
                 ],
             }),
             8 => Ok(Self {
                 plane: [
                     (3, [(0, 1), (1, 1), (2, 1)]),
-                    (0, [(0, 1), (1, 1), (2, 1)]),
-                    (1, [(0, 1), (1, 1), (2, 1)]),
                     (5, [(0, 1), (1, 1), (2, 1)]),
+                    (1, [(0, 1), (1, 1), (2, 1)]),
+                    (0, [(0, 1), (1, 1), (2, 1)]),
                 ],
             }),
             _ => bail!("Only values between 0-8 are valid"),
@@ -99,14 +100,14 @@ impl TryFrom<usize> for ShadowPlane {
 pub struct Face {
     faces: [[Colors; 3]; 3],
     rotation: Matrix4<f32>,
-    convert_cord: Box<dyn Fn(f32, f32) -> Matrix4<f32>>,
+    convert_cord: Box<dyn Fn(f32, f32) -> Vector3<f32>>,
 }
 
 impl Face {
     fn new(
         rotation: Matrix4<f32>,
         faces: [[Colors; 3]; 3],
-        convert_cord: Box<dyn Fn(f32, f32) -> Matrix4<f32>>,
+        convert_cord: Box<dyn Fn(f32, f32) -> Vector3<f32>>,
     ) -> Self {
         Self {
             faces,
@@ -121,7 +122,7 @@ impl Face {
         self.rotation
     }
     pub fn convert_cords(&self, x: f32, y: f32) -> Matrix4<f32> {
-        return (self.convert_cord)(x, y);
+        return Matrix4::from_translation((self.convert_cord)(x, y));
     }
 }
 
@@ -130,6 +131,36 @@ pub struct RubiksCube {
 }
 
 impl RubiksCube {
+    pub fn get_rotate_matrix(
+        &self,
+        rotating_face: usize,
+        face: usize,
+        x: f32,
+        y: f32,
+        p: f64,
+    ) -> Result<Matrix4<f32>> {
+        if rotating_face >= 9 || face >= 6 {
+            bail!("Unsupported face")
+        }
+        let center = if rotating_face >= 6 {
+            vec3(1., 1., 1.)
+        } else {
+            (self.blocks[rotating_face].convert_cord)(1., 1.)
+        };
+
+        let v = (self.blocks[face].convert_cord)(x, y) - center;
+        return Ok(Matrix4::from_translation(-v)
+            * self.get_face_rotate(rotating_face, p).unwrap()
+            * Matrix4::from_translation(v));
+    }
+    fn get_face_rotate(&self, face: usize, p: f64) -> Result<Matrix4<f32>> {
+        match face {
+            3 | 1 | 6 => Ok(Matrix4::from_angle_z(Rad(p as f32 * PI / 2.))),
+            0 | 5 | 7 => Ok(Matrix4::from_angle_y(Rad(-p as f32 * PI / 2.))),
+            2 | 4 | 8 => Ok(Matrix4::from_angle_x(Rad(p as f32 * PI / 2.))),
+            _ => bail!("Unsupported face"),
+        }
+    }
     pub fn iter(&self) -> Iter<Face> {
         return self.blocks.iter();
     }
@@ -141,17 +172,17 @@ impl RubiksCube {
                 Face::new(
                     Matrix4::from_angle_x(Deg(90.)),
                     [[RED, RED, RED], [RED, RED, RED], [RED, RED, RED]],
-                    Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, 3., y as f32))),
+                    Box::new(|x, y| (vec3(x as f32, 3., y as f32))),
                 ),
                 Face::new(
                     Matrix4::identity(),
                     [[GREY, GREY, GREY], [GREY, GREY, GREY], [GREY, GREY, GREY]],
-                    Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, y as f32, -1.))),
+                    Box::new(|x, y| (vec3(x as f32, y as f32, -1.))),
                 ),
                 Face::new(
                     Matrix4::from_angle_y(Deg(90.)),
                     [[BLUE, BLUE, BLUE], [BLUE, BLUE, BLUE], [BLUE, BLUE, BLUE]],
-                    Box::new(|x, y| Matrix4::from_translation(vec3(-1., y as f32, x as f32))),
+                    Box::new(|x, y| (vec3(-1., y as f32, x as f32))),
                 ),
                 Face::new(
                     Matrix4::identity(),
@@ -160,7 +191,7 @@ impl RubiksCube {
                         [WHITE, WHITE, WHITE],
                         [WHITE, WHITE, WHITE],
                     ],
-                    Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, y as f32, 2.))),
+                    Box::new(|x, y| (vec3(x as f32, y as f32, 2.))),
                 ),
                 Face::new(
                     Matrix4::from_angle_y(Deg(90.)),
@@ -169,7 +200,7 @@ impl RubiksCube {
                         [GREEN, GREEN, GREEN],
                         [GREEN, GREEN, GREEN],
                     ],
-                    Box::new(|x, y| Matrix4::from_translation(vec3(2., y as f32, x as f32))),
+                    Box::new(|x, y| (vec3(2., y as f32, x as f32))),
                 ),
                 Face::new(
                     Matrix4::from_angle_x(Deg(90.)),
@@ -178,11 +209,11 @@ impl RubiksCube {
                         [YELLOW, YELLOW, YELLOW],
                         [YELLOW, YELLOW, YELLOW],
                     ],
-                    Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, 0., y as f32))),
+                    Box::new(|x, y| (vec3(x as f32, 0., y as f32))),
                 ),
             ],
         };
-        cube.shuffle();
+        // cube.shuffle();
         return cube;
     }
 
@@ -191,7 +222,7 @@ impl RubiksCube {
 
         for _ in 0..rng.gen_range(50..=100) {
             self.rotate(rng.gen_range(0..=8usize), rng.gen_bool(0.5))
-                .unwrap();
+                .expect("rotate should always be between 0 and 8");
         }
     }
 
