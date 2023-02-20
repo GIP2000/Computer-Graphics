@@ -1,4 +1,4 @@
-use cgmath::{perspective, vec3, vec4, Deg, Matrix4, Point3, Rad, SquareMatrix, Vector4};
+use cgmath::{perspective, Deg, Matrix4, Point3, Vector4};
 use glfw::{Action, Key};
 use learn_opengl::{
     gls::{
@@ -7,10 +7,7 @@ use learn_opengl::{
     },
     window::Window,
 };
-use rubiks_cube::{
-    camera::{self, Camera},
-    game_logic::{Colors, RubiksCube},
-};
+use rubiks_cube::{camera::Camera, game_logic::RubiksCube};
 
 const SCR_WIDTH: u32 = 1600;
 const SCR_HEIGHT: u32 = 1200;
@@ -29,36 +26,15 @@ fn main() {
         -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5,
         0.5,
     ];
-    // let cube_verts: [f32; 144] = [
-    //     -0.5, -0.5, -0.5, 1., 0.5, -0.5, -0.5, 1., 0.5, 0.5, -0.5, 1., 0.5, 0.5, -0.5, 1., -0.5,
-    //     0.5, -0.5, 1., -0.5, -0.5, -0.5, 1., -0.5, -0.5, 0.5, 0., 0.5, -0.5, 0.5, 0., 0.5, 0.5,
-    //     0.5, 0., 0.5, 0.5, 0.5, 0., -0.5, 0.5, 0.5, 0., -0.5, -0.5, 0.5, 0., -0.5, 0.5, 0.5, 2.,
-    //     -0.5, 0.5, -0.5, 2., -0.5, -0.5, -0.5, 2., -0.5, -0.5, -0.5, 2., -0.5, -0.5, 0.5, 2., -0.5,
-    //     0.5, 0.5, 2., 0.5, 0.5, 0.5, 3., 0.5, 0.5, -0.5, 3., 0.5, -0.5, -0.5, 3., 0.5, -0.5, -0.5,
-    //     3., 0.5, -0.5, 0.5, 3., 0.5, 0.5, 0.5, 3., -0.5, -0.5, -0.5, 5., 0.5, -0.5, -0.5, 5., 0.5,
-    //     -0.5, 0.5, 5., 0.5, -0.5, 0.5, 5., -0.5, -0.5, 0.5, 5., -0.5, -0.5, -0.5, 5., -0.5, 0.5,
-    //     -0.5, 4., 0.5, 0.5, -0.5, 4., 0.5, 0.5, 0.5, 4., 0.5, 0.5, 0.5, 4., -0.5, 0.5, 0.5, 4.,
-    //     -0.5, 0.5, -0.5, 4.,
-    // ];
 
-    let attributes = [
-        Attribute {
-            // cords
-            location: 0,
-            size: 3,
-            normalized: false,
-            stride: 3,
-            offset: 0,
-        },
-        // Attribute {
-        //     // face
-        //     location: 1,
-        //     size: 1,
-        //     normalized: false,
-        //     stride: 4,
-        //     offset: 3,
-        // },
-    ];
+    let attributes = [Attribute {
+        // cords
+        location: 0,
+        size: 3,
+        normalized: false,
+        stride: 3,
+        offset: 0,
+    }];
     let cube =
         VOs::new(&face_verts, &attributes, gl::TRIANGLES).expect("vbo or vba failed to bind");
 
@@ -67,14 +43,18 @@ fn main() {
     shader.set_uniform("projection", projection).unwrap();
     let mut cam = Camera::new(Point3::new(1., 1., 10.), Point3::new(1., 1., 1.));
 
-    let cube_state = RubiksCube::new();
+    let mut cube_state = RubiksCube::new();
     let mut last_left = false;
     window.app_loop(|mut w| {
-        let (is_left_click, is_right_click) = process_input(&w.window);
+        let (three_clicked, is_left_click, is_right_click) = process_input(&w.window);
         process_events(&mut w, &mut projection, &mut cam, is_left_click, last_left);
         last_left = is_left_click;
 
         shader.set_uniform("view", cam.get_view()).unwrap();
+
+        if three_clicked {
+            cube_state.rotate(8, true).unwrap();
+        }
 
         for (i, block) in cube_state.iter().enumerate() {
             for (y, row) in block.iter().enumerate() {
@@ -90,8 +70,9 @@ fn main() {
         }
     });
 }
-fn process_input(window: &glfw::Window) -> (bool, bool) {
+fn process_input(window: &glfw::Window) -> (bool, bool, bool) {
     (
+        window.get_key(Key::Num3) == Action::Press,
         window.get_mouse_button(glfw::MouseButton::Button1) == Action::Press,
         window.get_mouse_button(glfw::MouseButton::Button2) == Action::Press,
     )
