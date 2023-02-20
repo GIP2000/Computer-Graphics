@@ -2,6 +2,7 @@ mod colors;
 use anyhow::{bail, Context, Result};
 use cgmath::{vec3, Deg, Matrix4, SquareMatrix};
 use colors::Colors;
+use rand::Rng;
 use std::{
     collections::VecDeque,
     convert::{TryFrom, TryInto},
@@ -135,7 +136,7 @@ impl RubiksCube {
 
     pub fn new() -> Self {
         use Colors::*;
-        Self {
+        let mut cube = Self {
             blocks: [
                 Face::new(
                     Matrix4::from_angle_x(Deg(90.)),
@@ -180,6 +181,17 @@ impl RubiksCube {
                     Box::new(|x, y| Matrix4::from_translation(vec3(x as f32, 0., y as f32))),
                 ),
             ],
+        };
+        cube.shuffle();
+        return cube;
+    }
+
+    pub fn shuffle(&mut self) {
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..rng.gen_range(50..=100) {
+            self.rotate(rng.gen_range(0..=8usize), rng.gen_bool(0.5))
+                .unwrap();
         }
     }
 
