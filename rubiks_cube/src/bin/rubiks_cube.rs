@@ -1,6 +1,4 @@
-use std::ops::Mul;
-
-use cgmath::{perspective, vec3, Deg, Matrix, Matrix4, Point3, SquareMatrix, Vector4};
+use cgmath::{perspective, Deg, Matrix4, Point3, Vector4};
 use glfw::{Action, Key};
 use learn_opengl::{
     gls::{
@@ -40,7 +38,7 @@ fn main() {
         stride: 3,
         offset: 0,
     }];
-    let cube =
+    let face_obj =
         VOs::new(&face_verts, &attributes, gl::TRIANGLES).expect("vbo or vba failed to bind");
 
     let mut projection: Matrix4<f32> =
@@ -55,6 +53,18 @@ fn main() {
     let mut start_time: f64 = 0.;
     let mut rotating_face: usize = 8;
     window.app_loop(|mut w| {
+        let (rotate_clicked, is_left_click, is_right_click) = process_input(&w.window);
+        process_events(
+            &mut w,
+            &mut projection,
+            &mut cam,
+            is_left_click,
+            last_left,
+            is_right_click,
+        );
+        last_left = is_left_click;
+
+        shader.set_uniform("view", cam.get_view()).unwrap();
         if is_animating {
             let current_time = w.glfw.get_time() - start_time;
             if current_time >= ANIMATION_DURATION {
@@ -74,9 +84,6 @@ fn main() {
                                 .unwrap_or(false);
 
                             let model = if face == rotating_face || is_shadow_plane {
-                                // translate to the center
-                                // rotate by percentage
-                                // translate back
                                 block.convert_cords(x as f32, y as f32)
                                     * cube_state
                                         .get_rotate_matrix(
@@ -95,18 +102,13 @@ fn main() {
                             shader
                                 .set_uniform::<Vector4<f32>>("uColor", color.into())
                                 .unwrap();
-                            cube.draw_arrays(0, 6).unwrap();
+                            face_obj.draw_arrays(0, 6).unwrap();
                         }
                     }
                 }
                 return;
             }
         }
-        let (rotate_clicked, is_left_click, is_right_click) = process_input(&w.window);
-        process_events(&mut w, &mut projection, &mut cam, is_left_click, last_left);
-        last_left = is_left_click;
-
-        shader.set_uniform("view", cam.get_view()).unwrap();
 
         if rotate_clicked {
             start_time = w.glfw.get_time();
@@ -114,7 +116,7 @@ fn main() {
             return;
         }
 
-        for (i, block) in cube_state.iter().enumerate() {
+        for block in cube_state.iter() {
             for (y, row) in block.iter().enumerate() {
                 for (x, color) in row.iter().enumerate() {
                     let model = block.convert_cords(x as f32, y as f32) * block.get_rotation();
@@ -122,7 +124,7 @@ fn main() {
                     shader
                         .set_uniform::<Vector4<f32>>("uColor", color.into())
                         .unwrap();
-                    cube.draw_arrays(0, 6).unwrap();
+                    face_obj.draw_arrays(0, 6).unwrap();
                 }
             }
         }
@@ -142,7 +144,8 @@ fn process_events(
     cam: &mut Camera,
     is_left_click: bool,
     last_left: bool,
-) -> bool {
+    is_right_click: bool,
+) {
     glfw::flush_messages(&w.events)
         .into_iter()
         .for_each(|(_, event)| {
@@ -164,9 +167,11 @@ fn process_events(
                     } else if is_left_click && !last_left {
                         cam.set_last(x as f32, y as f32);
                     }
+                    if is_right_click {
+                        // calcualte world cords for x,y
+                    }
                 }
                 _ => {}
             };
         });
-    return false;
 }
