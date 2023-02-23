@@ -1,8 +1,14 @@
+use std::{convert::TryInto, path::Path};
+
 use cgmath::{perspective, Deg, Matrix4, Point3, Vector4};
 use glfw::{Action, Key};
 use learn_opengl::{
     gls::{
-        buffers::{Attribute, VOs},
+        buffers::{
+            bindable::Bindable,
+            texture::{Texture2D, Textures},
+            Attribute, VOs,
+        },
         shader::{Shader, ShaderProgram},
     },
     window::Window,
@@ -25,19 +31,57 @@ fn main() {
     let f_shader =
         Shader::new(FRAG_SHADER_SOURCE, gl::FRAGMENT_SHADER).expect("Failed to compile F Shader");
     let shader = ShaderProgram::new([v_shader, f_shader]).expect("Failed to Create Shader Program");
-    let face_verts: [f32; 18] = [
-        -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5,
-        0.5,
+    let face_verts: [f32; 30] = [
+        -0.5, -0.5, 0.5, 0., 0., 0.5, -0.5, 0.5, 1., 0., 0.5, 0.5, 0.5, 1., 1., 0.5, 0.5, 0.5, 1.,
+        1., -0.5, 0.5, 0.5, 0., 1., -0.5, -0.5, 0.5, 0., 0.,
     ];
 
-    let attributes = [Attribute {
-        // cords
-        location: 0,
-        size: 3,
-        normalized: false,
-        stride: 3,
-        offset: 0,
-    }];
+    let attributes = [
+        Attribute {
+            // cords
+            location: 0,
+            size: 3,
+            normalized: false,
+            stride: 5,
+            offset: 0,
+        },
+        Attribute {
+            // texture
+            location: 1,
+            size: 2,
+            normalized: false,
+            stride: 5,
+            offset: 3,
+        },
+    ];
+
+    let imgs: [Texture2D; 13] = core::array::from_fn(|n| {
+        let img = if n < 9 {
+            image::open(&Path::new(&format!("./rubiks_cube/resources/{}.png", n))).unwrap()
+        } else {
+            image::open(&Path::new("./rubiks_cube/resources/arrow.png")).unwrap()
+        };
+        let img = match n {
+            1 | 2 | 10 => img.fliph(),
+            11 => img.rotate90(),
+            12 => img.rotate270(),
+            _ => img,
+        };
+        Texture2D::new(
+            img.flipv(),
+            [gl::REPEAT, gl::REPEAT],
+            [gl::LINEAR, gl::LINEAR],
+            gl::RGBA,
+            None,
+        )
+        .unwrap()
+    });
+
+    let texs = Textures::<13>::new(core::array::from_fn(|i| &imgs[i])).unwrap();
+    texs.bind().unwrap();
+
+    shader.set_uniform("has_texture", false).unwrap();
+
     let face_obj =
         VOs::new(&face_verts, &attributes, gl::TRIANGLES).expect("vbo or vba failed to bind");
 
@@ -51,17 +95,11 @@ fn main() {
     const ANIMATION_DURATION: f64 = 0.5;
     let mut is_animating = false;
     let mut start_time: f64 = 0.;
-    let mut rotating_face: usize = 8;
+    let mut rotating_face: usize = 0;
+    let mut is_clockwise: bool = true;
     window.app_loop(|mut w| {
-        let (rotate_clicked, is_left_click, is_right_click) = process_input(&w.window);
-        process_events(
-            &mut w,
-            &mut projection,
-            &mut cam,
-            is_left_click,
-            last_left,
-            is_right_click,
-        );
+        let (rotate_clicked, is_left_click, show_shadow_face, is_shift) = process_input(&w.window);
+        process_events(&mut w, &mut projection, &mut cam, is_left_click, last_left);
         last_left = is_left_click;
 
         shader.set_uniform("view", cam.get_view()).unwrap();
@@ -69,7 +107,7 @@ fn main() {
             let current_time = w.glfw.get_time() - start_time;
             if current_time >= ANIMATION_DURATION {
                 is_animating = false;
-                cube_state.rotate(rotating_face, true).unwrap();
+                cube_state.rotate(rotating_face, is_clockwise).unwrap();
             } else {
                 let shadow_plane_cords: ShadowPlane = rotating_face.try_into().unwrap();
                 for (face, block) in cube_state.iter().enumerate() {
@@ -78,7 +116,7 @@ fn main() {
                             let is_shadow_plane = shadow_plane_cords
                                 .plane
                                 .iter()
-                                .flat_map(|(f, cords)| cords.map(|(y, x)| (f, y, x)))
+                                .flat_map(|(f, cords, _)| cords.map(|(y, x)| (f, y, x)))
                                 .find(|&(&sf, sy, sx)| face == sf && sy == y && sx == x)
                                 .map(|_| true)
                                 .unwrap_or(false);
@@ -92,6 +130,7 @@ fn main() {
                                             x as f32,
                                             y as f32,
                                             current_time / ANIMATION_DURATION,
+                                            is_clockwise,
                                         )
                                         .unwrap()
                                     * block.get_rotation()
@@ -110,13 +149,15 @@ fn main() {
             }
         }
 
-        if rotate_clicked {
+        if let Some(face) = rotate_clicked {
             start_time = w.glfw.get_time();
             is_animating = true;
+            rotating_face = face;
+            is_clockwise = !is_shift;
             return;
         }
 
-        for block in cube_state.iter() {
+        for (face, block) in cube_state.iter().enumerate() {
             for (y, row) in block.iter().enumerate() {
                 for (x, color) in row.iter().enumerate() {
                     let model = block.convert_cords(x as f32, y as f32) * block.get_rotation();
@@ -124,18 +165,82 @@ fn main() {
                     shader
                         .set_uniform::<Vector4<f32>>("uColor", color.into())
                         .unwrap();
+                    if show_shadow_face && (y == 1 || x == 1) {
+                        let shadow6: ShadowPlane = 6usize.try_into().unwrap();
+                        let shadow7: ShadowPlane = 7usize.try_into().unwrap();
+                        let shadow8: ShadowPlane = 8usize.try_into().unwrap();
+
+                        let check_closure =
+                            |a, (cur_face, cords, v): &(usize, [(usize, usize); 3], _)| {
+                                if *cur_face == face {
+                                    if let Some(_) =
+                                        cords.iter().find(|&&(cy, cx)| cy == y && cx == x)
+                                    {
+                                        return Some(*v);
+                                    }
+                                }
+                                return a;
+                            };
+
+                        if let Some((f, a)) = [&shadow6, &shadow7, &shadow8]
+                            .iter()
+                            .map(|shadow| shadow.plane.iter().fold(None, check_closure))
+                            .enumerate()
+                            .map(|(i, v)| (i + 6, v))
+                            .fold(
+                                None,
+                                |a, (f, v)| if let Some(_) = v { Some((f, v)) } else { a },
+                            )
+                        {
+                            shader.set_uniform("has_texture", true).unwrap();
+                            if y == 1 && x == 1 {
+                                shader.set_uniform("ourTexture", f as i32).unwrap();
+                            } else {
+                                shader.set_uniform("ourTexture", a.unwrap() as i32).unwrap();
+                            }
+                        }
+                    } else if y == 1 && x == 1 {
+                        shader.set_uniform("has_texture", true).unwrap();
+                        shader.set_uniform("ourTexture", face as i32).unwrap();
+                    }
                     face_obj.draw_arrays(0, 6).unwrap();
+                    shader.set_uniform("has_texture", false).unwrap();
                 }
             }
         }
     });
 }
-fn process_input(window: &glfw::Window) -> (bool, bool, bool) {
-    (
-        window.get_key(Key::Num3) == Action::Press,
+fn process_input(window: &glfw::Window) -> (Option<usize>, bool, bool, bool) {
+    let mut num: Option<usize> = None;
+
+    if window.get_key(Key::Num0) == Action::Press {
+        num = Some(0);
+    } else if window.get_key(Key::Num1) == Action::Press {
+        num = Some(1);
+    } else if window.get_key(Key::Num2) == Action::Press {
+        num = Some(2);
+    } else if window.get_key(Key::Num3) == Action::Press {
+        num = Some(3);
+    } else if window.get_key(Key::Num4) == Action::Press {
+        num = Some(4);
+    } else if window.get_key(Key::Num5) == Action::Press {
+        num = Some(5);
+    } else if window.get_key(Key::Num6) == Action::Press {
+        num = Some(6);
+    } else if window.get_key(Key::Num7) == Action::Press {
+        num = Some(7);
+    } else if window.get_key(Key::Num8) == Action::Press {
+        num = Some(8);
+    }
+
+    return (
+        num,
         window.get_mouse_button(glfw::MouseButton::Button1) == Action::Press,
-        window.get_mouse_button(glfw::MouseButton::Button2) == Action::Press,
-    )
+        window.get_mouse_button(glfw::MouseButton::Button2) == Action::Press
+            || window.get_key(Key::S) == Action::Press,
+        window.get_key(Key::LeftShift) == Action::Press
+            || window.get_key(Key::RightShift) == Action::Press,
+    );
 }
 
 fn process_events(
@@ -144,7 +249,6 @@ fn process_events(
     cam: &mut Camera,
     is_left_click: bool,
     last_left: bool,
-    is_right_click: bool,
 ) {
     glfw::flush_messages(&w.events)
         .into_iter()
@@ -166,9 +270,6 @@ fn process_events(
                         cam.pan(x as f32, y as f32, w.delta_time)
                     } else if is_left_click && !last_left {
                         cam.set_last(x as f32, y as f32);
-                    }
-                    if is_right_click {
-                        // calcualte world cords for x,y
                     }
                 }
                 _ => {}

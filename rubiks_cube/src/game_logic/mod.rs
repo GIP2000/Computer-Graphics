@@ -12,7 +12,7 @@ use std::{
 
 pub struct ShadowPlane {
     //       face  ,  y    , x
-    pub plane: [(usize, [(usize, usize); 3]); 4],
+    pub plane: [(usize, [(usize, usize); 3], usize); 4],
 }
 
 impl TryFrom<usize> for ShadowPlane {
@@ -22,74 +22,74 @@ impl TryFrom<usize> for ShadowPlane {
         match value {
             0 => Ok(Self {
                 plane: [
-                    (3, [(2, 0), (2, 1), (2, 2)]),
-                    (2, [(2, 0), (2, 1), (2, 2)]),
-                    (1, [(2, 0), (2, 1), (2, 2)]),
-                    (4, [(2, 0), (2, 1), (2, 2)]),
+                    (3, [(2, 2), (2, 1), (2, 0)], 9),
+                    (2, [(2, 2), (2, 1), (2, 0)], 9),
+                    (1, [(2, 0), (2, 1), (2, 2)], 9),
+                    (4, [(2, 0), (2, 1), (2, 2)], 9),
                 ],
             }),
             1 => Ok(Self {
                 plane: [
-                    (0, [(0, 2), (0, 1), (0, 0)]),
-                    (2, [(0, 0), (1, 0), (2, 0)]),
-                    (5, [(0, 0), (0, 1), (0, 2)]),
-                    (4, [(0, 0), (1, 0), (2, 0)]),
+                    (0, [(0, 2), (0, 1), (0, 0)], 9),
+                    (2, [(2, 0), (1, 0), (0, 0)], 9),
+                    (5, [(0, 0), (0, 1), (0, 2)], 9),
+                    (4, [(0, 0), (1, 0), (2, 0)], 9),
                 ],
             }),
             2 => Ok(Self {
                 plane: [
-                    (0, [(0, 0), (1, 0), (2, 0)]),
-                    (3, [(2, 0), (1, 0), (0, 0)]),
-                    (5, [(2, 0), (1, 0), (0, 0)]),
-                    (1, [(0, 0), (1, 0), (2, 0)]),
+                    (0, [(0, 0), (1, 0), (2, 0)], 9),
+                    (3, [(2, 0), (1, 0), (0, 0)], 9),
+                    (5, [(2, 0), (1, 0), (0, 0)], 9),
+                    (1, [(0, 0), (1, 0), (2, 0)], 9),
                 ],
             }),
             3 => Ok(Self {
                 plane: [
-                    (0, [(2, 0), (2, 1), (2, 2)]),
-                    (2, [(0, 2), (1, 2), (2, 2)]),
-                    (5, [(2, 2), (2, 1), (2, 0)]),
-                    (4, [(0, 2), (1, 2), (2, 2)]),
+                    (0, [(2, 0), (2, 1), (2, 2)], 9),
+                    (4, [(2, 2), (1, 2), (0, 2)], 9),
+                    (5, [(2, 2), (2, 1), (2, 0)], 9),
+                    (2, [(0, 2), (1, 2), (2, 2)], 9),
                 ],
             }),
             4 => Ok(Self {
                 plane: [
-                    (0, [(0, 2), (1, 2), (2, 2)]),
-                    (3, [(0, 2), (1, 2), (2, 2)]),
-                    (5, [(0, 2), (1, 2), (2, 2)]),
-                    (1, [(0, 2), (1, 2), (2, 2)]),
+                    (0, [(0, 2), (1, 2), (2, 2)], 9),
+                    (1, [(0, 2), (1, 2), (2, 2)], 9),
+                    (5, [(2, 2), (1, 2), (0, 2)], 9),
+                    (3, [(2, 2), (1, 2), (0, 2)], 9),
                 ],
             }),
             5 => Ok(Self {
                 plane: [
-                    (3, [(0, 0), (0, 1), (0, 2)]),
-                    (2, [(0, 0), (0, 1), (0, 2)]),
-                    (1, [(0, 0), (0, 1), (0, 2)]),
-                    (4, [(0, 0), (0, 1), (0, 2)]),
+                    (3, [(0, 0), (0, 1), (0, 2)], 9),
+                    (4, [(0, 2), (0, 1), (0, 0)], 9),
+                    (1, [(0, 2), (0, 1), (0, 0)], 9),
+                    (2, [(0, 0), (0, 1), (0, 2)], 9),
                 ],
             }),
             6 => Ok(Self {
                 plane: [
-                    (0, [(1, 0), (1, 1), (1, 2)]),
-                    (2, [(0, 1), (1, 1), (2, 1)]),
-                    (5, [(1, 0), (1, 1), (1, 2)]),
-                    (4, [(0, 1), (1, 1), (2, 1)]),
+                    (0, [(1, 0), (1, 1), (1, 2)], 10),
+                    (2, [(0, 1), (1, 1), (2, 1)], 12),
+                    (5, [(1, 2), (1, 1), (1, 0)], 9),
+                    (4, [(2, 1), (1, 1), (0, 1)], 11),
                 ],
             }),
             7 => Ok(Self {
                 plane: [
-                    (3, [(1, 0), (1, 1), (1, 2)]),
-                    (2, [(1, 0), (1, 1), (1, 2)]),
-                    (1, [(1, 0), (1, 1), (1, 2)]),
-                    (4, [(1, 0), (1, 1), (1, 2)]),
+                    (3, [(1, 0), (1, 1), (1, 2)], 10),
+                    (4, [(1, 0), (1, 1), (1, 2)], 10),
+                    (1, [(1, 2), (1, 1), (1, 0)], 10),
+                    (2, [(1, 2), (1, 1), (1, 0)], 10),
                 ],
             }),
             8 => Ok(Self {
                 plane: [
-                    (3, [(0, 1), (1, 1), (2, 1)]),
-                    (5, [(0, 1), (1, 1), (2, 1)]),
-                    (1, [(0, 1), (1, 1), (2, 1)]),
-                    (0, [(0, 1), (1, 1), (2, 1)]),
+                    (3, [(0, 1), (1, 1), (2, 1)], 11),
+                    (5, [(0, 1), (1, 1), (2, 1)], 11),
+                    (1, [(0, 1), (1, 1), (2, 1)], 12),
+                    (0, [(0, 1), (1, 1), (2, 1)], 12),
                 ],
             }),
             _ => bail!("Only values between 0-8 are valid"),
@@ -138,6 +138,7 @@ impl RubiksCube {
         x: f32,
         y: f32,
         p: f64,
+        is_clockwise: bool,
     ) -> Result<Matrix4<f32>> {
         if rotating_face >= 9 || face >= 6 {
             bail!("Unsupported face")
@@ -150,10 +151,19 @@ impl RubiksCube {
 
         let v = (self.blocks[face].convert_cord)(x, y) - center;
         return Ok(Matrix4::from_translation(-v)
-            * self.get_face_rotate(rotating_face, p).unwrap()
+            * self
+                .get_face_rotate(rotating_face, p, is_clockwise)
+                .unwrap()
             * Matrix4::from_translation(v));
     }
-    fn get_face_rotate(&self, face: usize, p: f64) -> Result<Matrix4<f32>> {
+    fn get_face_rotate(&self, face: usize, mut p: f64, is_clockwise: bool) -> Result<Matrix4<f32>> {
+        p = match face {
+            5 | 7 | 4 | 3 => -p,
+            _ => p,
+        };
+        if !is_clockwise {
+            p = -p;
+        }
         match face {
             3 | 1 | 6 => Ok(Matrix4::from_angle_z(Rad(p as f32 * PI / 2.))),
             0 | 5 | 7 => Ok(Matrix4::from_angle_y(Rad(-p as f32 * PI / 2.))),
@@ -213,7 +223,7 @@ impl RubiksCube {
                 ),
             ],
         };
-        // cube.shuffle();
+        cube.shuffle();
         return cube;
     }
 
@@ -226,13 +236,13 @@ impl RubiksCube {
         }
     }
 
-    pub fn rotate(&mut self, face: usize, is_clockwise: bool) -> Result<()> {
+    pub fn rotate(&mut self, face: usize, mut is_clockwise: bool) -> Result<()> {
         let shadow_plane_cords: ShadowPlane = face.try_into()?;
 
         let mut shadow_plane = shadow_plane_cords
             .plane
             .iter()
-            .flat_map(|(face, cords)| cords.map(|(y, x)| self.blocks[*face].faces[y][x].clone()))
+            .flat_map(|(face, cords, _)| cords.map(|(y, x)| self.blocks[*face].faces[y][x].clone()))
             .collect::<VecDeque<_>>();
 
         if is_clockwise {
@@ -241,7 +251,7 @@ impl RubiksCube {
             shadow_plane.rotate_left(3);
         }
 
-        for (face, cords) in shadow_plane_cords.plane.iter() {
+        for (face, cords, _) in shadow_plane_cords.plane.iter() {
             for (y, x) in cords.iter().cloned() {
                 self.blocks[*face].faces[y][x] = shadow_plane
                     .pop_front()
@@ -251,25 +261,35 @@ impl RubiksCube {
 
         if face < 6 {
             // the current face
-            let mut new_face: [[Colors; 3]; 3] = self.blocks[face].faces.clone();
-            let mut iter_holder_a;
-            let mut iter_holder_b;
-            let iter: &mut dyn Iterator<Item = &[Colors; 3]> = if is_clockwise {
-                iter_holder_a = self.blocks[face].iter().rev();
-                &mut iter_holder_a
+            is_clockwise = match face {
+                2 | 5 | 3 => !is_clockwise,
+                _ => is_clockwise,
+            };
+            let face_cords = [
+                (0, 0),
+                (0, 1),
+                (0, 2),
+                (1, 2),
+                (2, 2),
+                (2, 1),
+                (2, 0),
+                (1usize, 0usize),
+            ];
+            let mut new_face = face_cords
+                .iter()
+                .map(|&(y, x)| self.blocks[face].faces[y][x].clone())
+                .collect::<Vec<_>>();
+
+            if is_clockwise {
+                new_face.rotate_right(2);
             } else {
-                iter_holder_b = self.blocks[face].iter();
-                &mut iter_holder_b
+                new_face.rotate_left(2);
             };
 
-            for (y, row) in iter.enumerate() {
-                for (x, color) in row.iter().enumerate() {
-                    new_face[x][y] = color.clone()
-                }
+            for ((y, x), color) in face_cords.into_iter().zip(new_face.into_iter()) {
+                self.blocks[face].faces[y][x] = color;
             }
-            self.blocks[face].faces = new_face;
         }
-        // do the shadow face inner planes only have shadow faces
         return Ok(());
     }
 }

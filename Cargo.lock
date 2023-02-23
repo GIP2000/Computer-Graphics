@@ -696,6 +696,7 @@ dependencies = [
  "cgmath",
  "gl",
  "glfw",
+ "image",
  "learn-opengl",
  "rand 0.8.5",
 ]
