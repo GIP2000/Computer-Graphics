@@ -69,7 +69,6 @@ impl Texture2D {
         } else {
             bail!("Unsopported source image type")
         };
-        // let data_ptr = img.as_rgb8().context("Couldn't convert to rgb")?.as_ptr();
         let mut tex = 0;
 
         unsafe {
