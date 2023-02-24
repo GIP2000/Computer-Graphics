@@ -3,7 +3,7 @@ pub mod ebo;
 pub mod texture;
 
 use super::gl_size::GLSize;
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use bindable::Bindable;
 use gl::types::*;
 use std::os::raw::c_void;

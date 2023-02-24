@@ -63,7 +63,6 @@ fn main() {
             _ => img,
         };
         Texture2D::new(
-            // || n != 7 || n != 8
             if n != 6 { img.flipv() } else { img },
             [gl::REPEAT, gl::REPEAT],
             [gl::LINEAR, gl::LINEAR],
