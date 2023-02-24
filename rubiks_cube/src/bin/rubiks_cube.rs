@@ -87,9 +87,7 @@ fn main() {
     shader.set_uniform("projection", projection).unwrap();
     let mut cam = Camera::new(Point3::new(1., 1., 10.), Point3::new(1., 1., 1.));
 
-    let mut args_iter = std::env::args();
-    args_iter.next().expect("This should be unrechable");
-    let mut cube_state = if let Some(p) = std::env::args().next() {
+    let mut cube_state = if let Some(p) = std::env::args().last() {
         RubiksCube::new_from_save(p.as_str()).unwrap()
     } else {
         RubiksCube::new()
@@ -187,34 +185,26 @@ fn main() {
                     shader
                         .set_uniform("uColor", vec4(0f32, 0., 0., 0.))
                         .unwrap();
+                    let p = Rad(if is_clockwise { 1. } else { -1. }
+                        * (current_time / ANIMATION_DURATION) as f32
+                        * PI
+                        / 2.);
                     let (model, rotate) = match rotating_face {
                         6 => {
                             let model = Matrix4::from_translation(vec3(1., 1., 1.));
-                            let rotate = Matrix4::from_angle_z(Rad((current_time
-                                / ANIMATION_DURATION)
-                                as f32
-                                * PI
-                                / 2.));
+                            let rotate = Matrix4::from_angle_z(p);
                             (model, rotate)
                         }
                         7 => {
                             let model = Matrix4::from_translation(vec3(1., 1., 1.))
                                 * Matrix4::from_angle_x(Deg(90.));
-                            let rotate = Matrix4::from_angle_z(Rad(-(current_time
-                                / ANIMATION_DURATION)
-                                as f32
-                                * PI
-                                / 2.));
+                            let rotate = Matrix4::from_angle_z(-p);
                             (model, rotate)
                         }
                         8 => {
                             let model = Matrix4::from_translation(vec3(1., 1., 1.))
                                 * Matrix4::from_angle_y(Deg(90.));
-                            let rotate = Matrix4::from_angle_z(Rad((current_time
-                                / ANIMATION_DURATION)
-                                as f32
-                                * PI
-                                / 2.));
+                            let rotate = Matrix4::from_angle_z(p);
                             (model, rotate)
                         }
                         _ => unreachable!("can't get here"),

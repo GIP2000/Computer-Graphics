@@ -188,6 +188,7 @@ impl RubiksCube {
     }
 
     pub fn new_from_save(p: &str) -> Result<Self> {
+        println!("{}", p);
         let contents =
             std::fs::read_to_string("./rubiks_cube_save.txt").context("failed to read")?;
         #[derive(Deserialize, Clone)]
