@@ -223,7 +223,7 @@ impl RubiksCube {
                 ),
             ],
         };
-        cube.shuffle();
+        // cube.shuffle();
         return cube;
     }
 

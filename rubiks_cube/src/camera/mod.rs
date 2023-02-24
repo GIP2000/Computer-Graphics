@@ -1,7 +1,4 @@
-use cgmath::{
-    vec2, vec3, vec4, InnerSpace, Matrix, Matrix3, Matrix4, MetricSpace, Point3, Rad, Vector2,
-    Vector3, Vector4,
-};
+use cgmath::{vec2, vec3, Matrix4, Point3, Vector2, Vector3};
 
 const SPEED: f32 = 0.5;
 

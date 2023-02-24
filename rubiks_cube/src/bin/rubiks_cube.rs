@@ -1,6 +1,6 @@
 use std::{convert::TryInto, path::Path};
 
-use cgmath::{perspective, Deg, Matrix4, Point3, Vector4};
+use cgmath::{perspective, vec3, vec4, Deg, Matrix4, Point3, Vector4};
 use glfw::{Action, Key};
 use learn_opengl::{
     gls::{
@@ -55,29 +55,25 @@ fn main() {
         },
     ];
 
-    let imgs: [Texture2D; 13] = core::array::from_fn(|n| {
-        let img = if n < 9 {
-            image::open(&Path::new(&format!("./rubiks_cube/resources/{}.png", n))).unwrap()
-        } else {
-            image::open(&Path::new("./rubiks_cube/resources/arrow.png")).unwrap()
-        };
+    let imgs: [Texture2D; 12] = core::array::from_fn(|n| {
+        let img = image::open(&Path::new(&format!("./rubiks_cube/resources/{}.png", n)))
+            .expect(&format!("error with image {}", n));
         let img = match n {
-            1 | 2 | 10 => img.fliph(),
-            11 => img.rotate90(),
-            12 => img.rotate270(),
+            1 | 2 | 7 | 8 => img.fliph(),
             _ => img,
         };
         Texture2D::new(
-            img.flipv(),
+            // || n != 7 || n != 8
+            if n != 6 { img.flipv() } else { img },
             [gl::REPEAT, gl::REPEAT],
             [gl::LINEAR, gl::LINEAR],
-            gl::RGBA,
+            if n < 7 { gl::RGBA } else { gl::RGB },
             None,
         )
-        .unwrap()
+        .expect(&format!("error with image {}", n))
     });
 
-    let texs = Textures::<13>::new(core::array::from_fn(|i| &imgs[i])).unwrap();
+    let texs = Textures::<12>::new(core::array::from_fn(|i| &imgs[i])).unwrap();
     texs.bind().unwrap();
 
     shader.set_uniform("has_texture", false).unwrap();
@@ -122,6 +118,40 @@ fn main() {
                                 .unwrap_or(false);
 
                             let model = if face == rotating_face || is_shadow_plane {
+                                if face == rotating_face {
+                                    let black_space_spot = vec3(
+                                        0.,
+                                        0.,
+                                        match face {
+                                            0 | 2 | 1 => 1.,
+                                            _ => -1.,
+                                        },
+                                    );
+                                    let model = block.convert_cords(x as f32, y as f32)
+                                        * cube_state
+                                            .get_rotate_matrix(
+                                                rotating_face,
+                                                face,
+                                                x as f32,
+                                                y as f32,
+                                                current_time / ANIMATION_DURATION,
+                                                is_clockwise,
+                                            )
+                                            .unwrap()
+                                        * block.get_rotation()
+                                        * Matrix4::from_translation(black_space_spot);
+                                    shader.set_uniform("model", model).unwrap();
+                                    shader
+                                        .set_uniform("uColor", vec4(0f32, 0., 0., 0.))
+                                        .unwrap();
+                                    face_obj.draw_arrays(0, 6).unwrap();
+                                    let model = block.convert_cords(x as f32, y as f32)
+                                        * block.get_rotation()
+                                        * Matrix4::from_translation(black_space_spot);
+                                    shader.set_uniform("model", model).unwrap();
+                                    face_obj.draw_arrays(0, 6).unwrap();
+                                }
+
                                 block.convert_cords(x as f32, y as f32)
                                     * cube_state
                                         .get_rotate_matrix(
@@ -165,43 +195,10 @@ fn main() {
                     shader
                         .set_uniform::<Vector4<f32>>("uColor", color.into())
                         .unwrap();
-                    if show_shadow_face && (y == 1 || x == 1) {
-                        let shadow6: ShadowPlane = 6usize.try_into().unwrap();
-                        let shadow7: ShadowPlane = 7usize.try_into().unwrap();
-                        let shadow8: ShadowPlane = 8usize.try_into().unwrap();
-
-                        let check_closure =
-                            |a, (cur_face, cords, v): &(usize, [(usize, usize); 3], _)| {
-                                if *cur_face == face {
-                                    if let Some(_) =
-                                        cords.iter().find(|&&(cy, cx)| cy == y && cx == x)
-                                    {
-                                        return Some(*v);
-                                    }
-                                }
-                                return a;
-                            };
-
-                        if let Some((f, a)) = [&shadow6, &shadow7, &shadow8]
-                            .iter()
-                            .map(|shadow| shadow.plane.iter().fold(None, check_closure))
-                            .enumerate()
-                            .map(|(i, v)| (i + 6, v))
-                            .fold(
-                                None,
-                                |a, (f, v)| if let Some(_) = v { Some((f, v)) } else { a },
-                            )
-                        {
-                            shader.set_uniform("has_texture", true).unwrap();
-                            if y == 1 && x == 1 {
-                                shader.set_uniform("ourTexture", f as i32).unwrap();
-                            } else {
-                                shader.set_uniform("ourTexture", a.unwrap() as i32).unwrap();
-                            }
-                        }
-                    } else if y == 1 && x == 1 {
+                    if y == 1 && x == 1 {
+                        let face_tex = if show_shadow_face { face + 6 } else { face };
                         shader.set_uniform("has_texture", true).unwrap();
-                        shader.set_uniform("ourTexture", face as i32).unwrap();
+                        shader.set_uniform("ourTexture", face_tex as i32).unwrap();
                     }
                     face_obj.draw_arrays(0, 6).unwrap();
                     shader.set_uniform("has_texture", false).unwrap();
