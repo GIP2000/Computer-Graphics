@@ -1,6 +1,7 @@
+use std::f32::consts::PI;
 use std::{convert::TryInto, path::Path};
 
-use cgmath::{perspective, vec3, vec4, Deg, Matrix4, Point3, Vector4};
+use cgmath::{perspective, vec3, vec4, Deg, Matrix4, Point3, Rad, Vector4};
 use glfw::{Action, Key};
 use learn_opengl::{
     gls::{
@@ -13,6 +14,7 @@ use learn_opengl::{
     },
     window::Window,
 };
+
 use rubiks_cube::{
     camera::Camera,
     game_logic::{RubiksCube, ShadowPlane},
@@ -85,7 +87,13 @@ fn main() {
     shader.set_uniform("projection", projection).unwrap();
     let mut cam = Camera::new(Point3::new(1., 1., 10.), Point3::new(1., 1., 1.));
 
-    let mut cube_state = RubiksCube::new();
+    let mut args_iter = std::env::args();
+    args_iter.next().expect("This should be unrechable");
+    let mut cube_state = if let Some(p) = std::env::args().next() {
+        RubiksCube::new_from_save(p.as_str()).unwrap()
+    } else {
+        RubiksCube::new()
+    };
     let mut last_left = false;
     const ANIMATION_DURATION: f64 = 0.5;
     let mut is_animating = false;
@@ -93,7 +101,8 @@ fn main() {
     let mut rotating_face: usize = 0;
     let mut is_clockwise: bool = true;
     window.app_loop(|mut w| {
-        let (rotate_clicked, is_left_click, show_shadow_face, is_shift) = process_input(&w.window);
+        let (rotate_clicked, is_left_click, show_shadow_face, is_shift) =
+            process_input(&w.window, &cube_state);
         process_events(&mut w, &mut projection, &mut cam, is_left_click, last_left);
         last_left = is_left_click;
 
@@ -174,6 +183,60 @@ fn main() {
                         }
                     }
                 }
+                if rotating_face >= 6 {
+                    shader
+                        .set_uniform("uColor", vec4(0f32, 0., 0., 0.))
+                        .unwrap();
+                    let (model, rotate) = match rotating_face {
+                        6 => {
+                            let model = Matrix4::from_translation(vec3(1., 1., 1.));
+                            let rotate = Matrix4::from_angle_z(Rad((current_time
+                                / ANIMATION_DURATION)
+                                as f32
+                                * PI
+                                / 2.));
+                            (model, rotate)
+                        }
+                        7 => {
+                            let model = Matrix4::from_translation(vec3(1., 1., 1.))
+                                * Matrix4::from_angle_x(Deg(90.));
+                            let rotate = Matrix4::from_angle_z(Rad(-(current_time
+                                / ANIMATION_DURATION)
+                                as f32
+                                * PI
+                                / 2.));
+                            (model, rotate)
+                        }
+                        8 => {
+                            let model = Matrix4::from_translation(vec3(1., 1., 1.))
+                                * Matrix4::from_angle_y(Deg(90.));
+                            let rotate = Matrix4::from_angle_z(Rad((current_time
+                                / ANIMATION_DURATION)
+                                as f32
+                                * PI
+                                / 2.));
+                            (model, rotate)
+                        }
+                        _ => unreachable!("can't get here"),
+                    };
+
+                    let left = model
+                        * Matrix4::from_translation(vec3(0., 0., -1.))
+                        * Matrix4::from_scale(3.);
+                    let right = model
+                        * Matrix4::from_translation(vec3(0., 0., -2.))
+                        * Matrix4::from_scale(3.);
+                    shader.set_uniform("model", left).unwrap();
+                    face_obj.draw_arrays(0, 6).unwrap();
+                    let left_spin = left * rotate;
+                    shader.set_uniform("model", left_spin).unwrap();
+                    face_obj.draw_arrays(0, 6).unwrap();
+                    shader.set_uniform("model", right).unwrap();
+                    face_obj.draw_arrays(0, 6).unwrap();
+                    let right_spin = right * rotate;
+                    shader.set_uniform("model", right_spin).unwrap();
+                    face_obj.draw_arrays(0, 6).unwrap();
+                }
                 return;
             }
         }
@@ -206,7 +269,8 @@ fn main() {
         }
     });
 }
-fn process_input(window: &glfw::Window) -> (Option<usize>, bool, bool, bool) {
+
+fn process_input(window: &glfw::Window, cube: &RubiksCube) -> (Option<usize>, bool, bool, bool) {
     let mut num: Option<usize> = None;
 
     if window.get_key(Key::Num0) == Action::Press {
@@ -227,6 +291,9 @@ fn process_input(window: &glfw::Window) -> (Option<usize>, bool, bool, bool) {
         num = Some(7);
     } else if window.get_key(Key::Num8) == Action::Press {
         num = Some(8);
+    }
+    if window.get_key(Key::W) == Action::Press {
+        cube.save("rubiks_cube_save.txt");
     }
 
     return (

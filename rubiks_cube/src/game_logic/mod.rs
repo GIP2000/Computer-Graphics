@@ -3,6 +3,7 @@ use anyhow::{bail, Context, Result};
 use cgmath::{vec3, Deg, Matrix4, Rad, SquareMatrix, Vector3};
 use colors::Colors;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
     convert::{TryFrom, TryInto},
@@ -97,9 +98,12 @@ impl TryFrom<usize> for ShadowPlane {
     }
 }
 
+#[derive(Serialize)]
 pub struct Face {
     faces: [[Colors; 3]; 3],
+    #[serde(skip_serializing)]
     rotation: Matrix4<f32>,
+    #[serde(skip_serializing)]
     convert_cord: Box<dyn Fn(f32, f32) -> Vector3<f32>>,
 }
 
@@ -126,6 +130,7 @@ impl Face {
     }
 }
 
+#[derive(Serialize)]
 pub struct RubiksCube {
     blocks: [Face; 6],
 }
@@ -171,8 +176,65 @@ impl RubiksCube {
             _ => bail!("Unsupported face"),
         }
     }
+
     pub fn iter(&self) -> Iter<Face> {
         return self.blocks.iter();
+    }
+
+    pub fn save(&self, path: &str) -> Result<()> {
+        let c = serde_json::to_string(self)?;
+        std::fs::write(path, c)?;
+        Ok(())
+    }
+
+    pub fn new_from_save(p: &str) -> Result<Self> {
+        let contents =
+            std::fs::read_to_string("./rubiks_cube_save.txt").context("failed to read")?;
+        #[derive(Deserialize, Clone)]
+        struct _FC {
+            pub faces: [[Colors; 3]; 3],
+        }
+        #[derive(Deserialize)]
+        struct _RC {
+            pub blocks: [_FC; 6],
+        }
+        let rc: _RC = serde_json::from_str(&contents).context("failed to serialize")?;
+        let b = &rc.blocks;
+
+        Ok(Self {
+            blocks: [
+                Face::new(
+                    Matrix4::from_angle_x(Deg(90.)),
+                    b[0].faces.clone(),
+                    Box::new(|x, y| (vec3(x as f32, 3., y as f32))),
+                ),
+                Face::new(
+                    Matrix4::identity(),
+                    b[1].faces.clone(),
+                    Box::new(|x, y| (vec3(x as f32, y as f32, -1.))),
+                ),
+                Face::new(
+                    Matrix4::from_angle_y(Deg(90.)),
+                    b[2].faces.clone(),
+                    Box::new(|x, y| (vec3(-1., y as f32, x as f32))),
+                ),
+                Face::new(
+                    Matrix4::identity(),
+                    b[3].faces.clone(),
+                    Box::new(|x, y| (vec3(x as f32, y as f32, 2.))),
+                ),
+                Face::new(
+                    Matrix4::from_angle_y(Deg(90.)),
+                    b[4].faces.clone(),
+                    Box::new(|x, y| (vec3(2., y as f32, x as f32))),
+                ),
+                Face::new(
+                    Matrix4::from_angle_x(Deg(90.)),
+                    b[5].faces.clone(),
+                    Box::new(|x, y| (vec3(x as f32, 0., y as f32))),
+                ),
+            ],
+        })
     }
 
     pub fn new() -> Self {
@@ -223,7 +285,7 @@ impl RubiksCube {
                 ),
             ],
         };
-        // cube.shuffle();
+        cube.shuffle();
         return cube;
     }
 

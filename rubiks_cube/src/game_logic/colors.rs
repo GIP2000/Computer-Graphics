@@ -1,6 +1,7 @@
 use cgmath::{vec4, Vector4};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Colors {
     RED,
     BLUE,
