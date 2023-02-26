@@ -14,7 +14,6 @@ pub struct ShaderProgram {
 
 impl Drop for ShaderProgram {
     fn drop(&mut self) {
-        println!("Deleteing Shader Program");
         unsafe {
             gl::DeleteProgram(self.id);
         }
@@ -46,7 +45,6 @@ impl ShaderProgram {
     }
 
     pub fn new<const N: usize>(shaders: [Shader; N]) -> Result<Self> {
-        println!("Linking and Building Program");
         let id;
         unsafe {
             id = gl::CreateProgram();
@@ -79,7 +77,6 @@ impl ShaderProgram {
 
 impl Drop for Shader {
     fn drop(&mut self) {
-        println!("Dropping Shader");
         unsafe {
             gl::DeleteShader(self.shader);
         }
@@ -88,7 +85,6 @@ impl Drop for Shader {
 
 impl Shader {
     pub fn new(shader_str: &str, shader_type: gl::types::GLenum) -> Result<Self> {
-        println!("Building Shader");
         let shader;
         unsafe {
             shader = gl::CreateShader(shader_type);

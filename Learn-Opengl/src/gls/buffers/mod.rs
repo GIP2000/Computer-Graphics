@@ -41,7 +41,6 @@ pub struct Attribute {
 
 impl Drop for VOs {
     fn drop(&mut self) {
-        println!("Dropping VOs");
         unsafe {
             gl::DeleteVertexArrays(1, &self.vao);
             gl::DeleteBuffers(1, &self.vbo);
@@ -51,7 +50,6 @@ impl Drop for VOs {
 
 impl VOs {
     pub fn new<T: GLSize>(verts: &[T], attributes: &[Attribute], shape: GLenum) -> Result<Self> {
-        println!("Building VBOAP");
         let vbo;
         let mut vao = 0;
         if verts.len() <= 0 {

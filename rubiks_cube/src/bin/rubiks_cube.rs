@@ -87,11 +87,20 @@ fn main() {
     shader.set_uniform("projection", projection).unwrap();
     let mut cam = Camera::new(Point3::new(1., 1., 10.), Point3::new(1., 1., 1.));
 
-    let mut cube_state = if let Some(p) = std::env::args().last() {
-        RubiksCube::new_from_save(p.as_str()).unwrap()
-    } else {
+    let mut cube_state = if std::env::args().len() <= 1 {
         RubiksCube::new()
+    } else {
+        let val = std::env::args().last().expect("Should always pass");
+        match val.parse::<usize>() {
+            Ok(v) => {
+                let mut c = RubiksCube::new();
+                c.shuffle(v);
+                c
+            }
+            Err(_) => RubiksCube::new_from_save(&val).expect("Invalid Input file"),
+        }
     };
+
     let mut last_left = false;
     const ANIMATION_DURATION: f64 = 0.5;
     let mut is_animating = false;
@@ -110,6 +119,10 @@ fn main() {
             if current_time >= ANIMATION_DURATION {
                 is_animating = false;
                 cube_state.rotate(rotating_face, is_clockwise).unwrap();
+                if cube_state.check_win() {
+                    w.window.set_should_close(true);
+                    println!("You Win!!!! run the program again to try again");
+                }
             } else {
                 let shadow_plane_cords: ShadowPlane = rotating_face.try_into().unwrap();
                 for (face, block) in cube_state.iter().enumerate() {
@@ -283,7 +296,7 @@ fn process_input(window: &glfw::Window, cube: &RubiksCube) -> (Option<usize>, bo
         num = Some(8);
     }
     if window.get_key(Key::W) == Action::Press {
-        cube.save("rubiks_cube_save.txt");
+        cube.save("rubiks_cube_save.txt").unwrap();
     }
 
     return (

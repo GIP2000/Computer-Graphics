@@ -10,7 +10,6 @@ pub struct EBO<T: GLSize> {
 }
 impl<T: GLSize> Drop for EBO<T> {
     fn drop(&mut self) {
-        println!("Dropping EBO");
         unsafe {
             gl::DeleteBuffers(1, &self.ebo);
         }
@@ -28,7 +27,6 @@ impl<T: GLSize> Bindable for EBO<T> {
 
 impl<T: GLSize> EBO<T> {
     pub fn new(indices: &[T]) -> Result<Self> {
-        println!("Building EBO");
         let ebo = unsafe { make_buffer(indices, gl::ELEMENT_ARRAY_BUFFER, gl::STATIC_DRAW)? };
         return Ok(Self {
             ebo,

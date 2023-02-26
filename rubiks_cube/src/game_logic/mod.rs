@@ -188,9 +188,7 @@ impl RubiksCube {
     }
 
     pub fn new_from_save(p: &str) -> Result<Self> {
-        println!("{}", p);
-        let contents =
-            std::fs::read_to_string("./rubiks_cube_save.txt").context("failed to read")?;
+        let contents = std::fs::read_to_string(format!("./{}", p)).context("failed to read")?;
         #[derive(Deserialize, Clone)]
         struct _FC {
             pub faces: [[Colors; 3]; 3],
@@ -286,17 +284,27 @@ impl RubiksCube {
                 ),
             ],
         };
-        cube.shuffle();
         return cube;
     }
 
-    pub fn shuffle(&mut self) {
+    pub fn shuffle(&mut self, count: usize) {
         let mut rng = rand::thread_rng();
-
-        for _ in 0..rng.gen_range(50..=100) {
+        for _ in 0..count {
             self.rotate(rng.gen_range(0..=8usize), rng.gen_bool(0.5))
                 .expect("rotate should always be between 0 and 8");
         }
+    }
+
+    pub fn check_win(&self) -> bool {
+        self.iter().fold(true, |acc, face| {
+            let val = &face.faces[0][0];
+            return acc
+                && face
+                    .iter()
+                    .filter(|&r| r[0] == r[1] && r[1] == r[2] && &r[0] == val)
+                    .count()
+                    == face.faces.len();
+        })
     }
 
     pub fn rotate(&mut self, face: usize, mut is_clockwise: bool) -> Result<()> {
