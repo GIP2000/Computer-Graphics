@@ -74,7 +74,24 @@ fn main() {
         .expect(&format!("error with image {}", n))
     });
 
-    let texs = Textures::<12>::new(core::array::from_fn(|i| &imgs[i])).unwrap();
+    let win_img = image::open(&Path::new("./rubiks_cube/resources/win.jpeg")).unwrap();
+    let win_texture = Texture2D::new(
+        win_img.flipv(),
+        [gl::REPEAT, gl::REPEAT],
+        [gl::LINEAR, gl::LINEAR],
+        gl::RGB,
+        None,
+    )
+    .unwrap();
+
+    let texs = Textures::<13>::new(core::array::from_fn(|i| {
+        if i < 12 {
+            &imgs[i]
+        } else {
+            &win_texture
+        }
+    }))
+    .unwrap();
     texs.bind().unwrap();
 
     shader.set_uniform("has_texture", false).unwrap();
@@ -107,6 +124,7 @@ fn main() {
     let mut start_time: f64 = 0.;
     let mut rotating_face: usize = 0;
     let mut is_clockwise: bool = true;
+    let mut won: bool = false;
     window.app_loop(|mut w| {
         let (rotate_clicked, is_left_click, show_shadow_face, is_shift) =
             process_input(&w.window, &cube_state);
@@ -119,10 +137,7 @@ fn main() {
             if current_time >= ANIMATION_DURATION {
                 is_animating = false;
                 cube_state.rotate(rotating_face, is_clockwise).unwrap();
-                if cube_state.check_win() {
-                    w.window.set_should_close(true);
-                    println!("You Win!!!! run the program again to try again");
-                }
+                won = cube_state.check_win();
             } else {
                 let shadow_plane_cords: ShadowPlane = rotating_face.try_into().unwrap();
                 for (face, block) in cube_state.iter().enumerate() {
@@ -263,7 +278,11 @@ fn main() {
                     if y == 1 && x == 1 {
                         let face_tex = if show_shadow_face { face + 6 } else { face };
                         shader.set_uniform("has_texture", true).unwrap();
-                        shader.set_uniform("ourTexture", face_tex as i32).unwrap();
+                        if won {
+                            shader.set_uniform("ourTexture", 12).unwrap();
+                        } else {
+                            shader.set_uniform("ourTexture", face_tex as i32).unwrap();
+                        }
                     }
                     face_obj.draw_arrays(0, 6).unwrap();
                     shader.set_uniform("has_texture", false).unwrap();
