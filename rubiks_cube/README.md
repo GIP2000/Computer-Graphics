@@ -31,4 +31,9 @@ You can optionally pass in a number as a command line argument or a string
 - If the argumennt is a string the program will attempt to open and parse the file. If succesfull it will load the Rubicks Cube otherwise it will exit
 - If no argument is passed it will display a non-randomized cube
 
+### Controls
+- Drag with the mouse to rotate the cube.
+- Numbers on the center cube rotate the cube clockwise pressing shift rotates the cube in the opposite direction
+- Pressing right click or the `s` key will show you the inner plane controls where the number and direction are on the center cube and once again shift and the number will rotate in the oppsite direction
+- Pressing `w` will save the game to the file.
 
