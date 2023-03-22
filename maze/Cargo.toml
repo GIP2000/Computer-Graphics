@@ -1,0 +1,14 @@
+[package]
+name = "maze"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+learn-opengl = { path = "../Learn-Opengl" }
+gl = "0.10.0"
+cgmath = "0.18.0"
+glfw = "0.23.0"
+anyhow = "1.0.68"
+image = "0.24.5"

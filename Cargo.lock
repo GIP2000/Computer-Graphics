@@ -403,6 +403,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "maze"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cgmath",
+ "gl",
+ "glfw",
+ "image",
+ "learn-opengl",
+]
+
+[[package]]
 name = "memoffset"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

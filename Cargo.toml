@@ -2,5 +2,6 @@
 [workspace]
 members = [
     "Learn-Opengl",
-    "rubiks_cube"
+    "rubiks_cube",
+    "maze"
 ]
