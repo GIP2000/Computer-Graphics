@@ -27,7 +27,7 @@ const VERTEX_SHADER_SOURCE: &'static str = include_str!("../../shaders/vert.glsl
 const FRAG_SHADER_SOURCE: &'static str = include_str!("../../shaders/frag.glsl");
 
 fn main() {
-    let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Rubiks Cube").unwrap();
+    let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Rubiks Cube", true, false).unwrap();
     let v_shader =
         Shader::new(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER).expect("Failed to compile V Shader");
     let f_shader =

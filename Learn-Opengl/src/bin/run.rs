@@ -8,8 +8,8 @@ use std::path::Path;
 
 use cgmath::{perspective, vec3, Deg, Matrix4, Point3};
 
-const SCR_WIDTH: u32 = 800;
 const SCR_HEIGHT: u32 = 600;
+const SCR_WIDTH: u32 = 800;
 
 const FRAGMENT_SHADER_SOURCE: &'static str = r#"
 #version 330 core
@@ -49,7 +49,7 @@ void main()
 "#;
 
 fn main() {
-    let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl").unwrap();
+    let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl", false, false).unwrap();
     let v_shader =
         Shader::new(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER).expect("Failed to Compile V Shader");
     let f_shader = Shader::new(FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER)

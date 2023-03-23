@@ -13,10 +13,17 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(width: u32, height: u32, title: &str) -> Result<Self> {
-        let glfw = Self::init_glfw()?;
+    pub fn new(
+        width: u32,
+        height: u32,
+        title: &str,
+        show_cursor: bool,
+        is_full_screen: bool,
+    ) -> Result<Self> {
+        let mut glfw = Self::init_glfw()?;
         let (mut window, events) =
-            Self::make_window(width, height, title, &glfw).context("Failed to make window")?;
+            Self::make_window(width, height, title, &mut glfw, show_cursor, is_full_screen)
+                .context("Failed to make window")?;
         gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
         unsafe {
             gl::Enable(gl::DEPTH_TEST);
@@ -50,17 +57,32 @@ impl Window {
         width: u32,
         height: u32,
         title: &str,
-        glfw: &glfw::Glfw,
+        glfw: &mut glfw::Glfw,
+        show_cursor: bool,
+        is_full_screen: bool,
     ) -> Option<(glfw::Window, Receiver<(f64, glfw::WindowEvent)>)> {
-        glfw.create_window(width, height, title, glfw::WindowMode::Windowed)
-            .map(|(mut window, events)| {
-                window.make_current();
-                window.set_key_polling(true);
-                window.set_framebuffer_size_polling(true);
-                window.set_cursor_pos_polling(true);
-                window.set_cursor_mode(glfw::CursorMode::Normal);
-                (window, events)
-            })
+        glfw.with_primary_monitor(|glfw, m| {
+            let mut window_mode = glfw::WindowMode::Windowed;
+            if is_full_screen {
+                if let Some(m) = m {
+                    window_mode = glfw::WindowMode::FullScreen(m);
+                }
+            }
+
+            glfw.create_window(width, height, title, window_mode)
+                .map(|(mut window, events)| {
+                    window.make_current();
+                    window.set_key_polling(true);
+                    window.set_framebuffer_size_polling(true);
+                    window.set_cursor_pos_polling(true);
+                    window.set_cursor_mode(if show_cursor {
+                        glfw::CursorMode::Normal
+                    } else {
+                        glfw::CursorMode::Disabled
+                    });
+                    (window, events)
+                })
+        })
     }
     pub fn app_loop<F>(&mut self, mut render_fn: F)
     where

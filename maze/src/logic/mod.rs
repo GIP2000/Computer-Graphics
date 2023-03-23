@@ -1,7 +1,8 @@
 use anyhow::Result;
-use cgmath::{vec2, Vector2};
-use std::{fmt::Display, ops::Index, str::FromStr};
+use cgmath::{vec3, Point3, Vector3};
+use std::{fmt::Display, ops::Index, slice::Iter, str::FromStr};
 
+#[derive(PartialEq, Eq)]
 pub enum MazeEntry {
     Empty,
     Wall,
@@ -101,7 +102,7 @@ impl FromStr for Maze {
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-struct MazeIndex {
+pub struct MazeIndex {
     row: isize,
     col: isize,
 }
@@ -109,6 +110,30 @@ struct MazeIndex {
 impl MazeIndex {
     pub fn new(row: isize, col: isize) -> Self {
         Self { row, col }
+    }
+}
+
+impl From<MazeIndex> for Vector3<f32> {
+    fn from(mi: MazeIndex) -> Self {
+        vec3(mi.col as f32, 1.0, mi.row as f32)
+    }
+}
+
+impl From<Point3<f32>> for MazeIndex {
+    fn from(p: Point3<f32>) -> Self {
+        let row_f = p.z;
+        let row_f = if row_f - row_f.floor() > 0.5 {
+            row_f.ceil() as isize
+        } else {
+            row_f.floor() as isize
+        };
+        let col_f = p.x;
+        let col_f = if col_f - col_f.floor() > 0.5 {
+            col_f.ceil() as isize
+        } else {
+            col_f.floor() as isize
+        };
+        Self::new(row_f, col_f)
     }
 }
 
@@ -126,6 +151,14 @@ impl Maze {
             maze,
             player: start,
         }
+    }
+
+    pub fn get_player_loc(&self) -> Vector3<f32> {
+        self.player.into()
+    }
+
+    pub fn iter(&self) -> Iter<Vec<MazeEntry>> {
+        self.maze.iter()
     }
 
     pub fn move_player(&mut self, dx: isize, dy: isize) -> Result<()> {

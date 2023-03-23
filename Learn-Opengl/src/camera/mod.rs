@@ -103,7 +103,6 @@ impl CameraDirectionTrait for CameraDirection {
 
 pub struct Camera {
     pos: Point3<f32>,
-    // target: Point3<f32>,
     true_up: Vector3<f32>,
     dir: Vector3<f32>,
     camera_right: Vector3<f32>,
@@ -186,14 +185,20 @@ impl Camera {
         self.recalc();
     }
 
-    pub fn translate_camera(&mut self, dir: CameraDirection, delta_time: f32) {
-        let x = (dir.is_right() - dir.is_left()) * -(self.dir.cross(self.camera_up).normalize());
+    pub fn try_translate_camera(&mut self, dir: CameraDirection, delta_time: f32) -> Point3<f32> {
+        let mut x =
+            (dir.is_right() - dir.is_left()) * Self::calc_camera_right(self.camera_up, self.dir);
+        x.y = 0.;
         let y = (dir.is_up() - dir.is_down()) * self.camera_up;
-        let z = (dir.is_backward() - dir.is_forward()) * self.dir;
-        self.pos = Point3::from_vec(
+        let mut z = (dir.is_backward() - dir.is_forward()) * self.dir;
+        z.y = 0.;
+        return Point3::from_vec(
             self.pos.to_vec() + (x + y + z).mul_element_wise(self.speed) * delta_time,
         );
-        self.recalc();
+    }
+
+    pub fn translate_camera(&mut self, dir: CameraDirection, delta_time: f32) {
+        self.pos = self.try_translate_camera(dir, delta_time);
     }
 
     fn recalc(&mut self) {
