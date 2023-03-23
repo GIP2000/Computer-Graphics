@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
 
-use cgmath::{perspective, vec3, vec4, Deg, EuclideanSpace, Matrix, Matrix4, Point3};
+use cgmath::{perspective, vec3, vec4, Deg, EuclideanSpace, Matrix4, Point3};
 use glfw::{Action, Key};
 use learn_opengl::{
     camera::{Camera, CameraDirection, CameraDirectionTrait},
@@ -100,6 +100,7 @@ fn main() {
         0f32,
         vec3(2.5, 2.5, 2.5),
     );
+
     let mut projection: Matrix4<f32> =
         perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
     shader.set_uniform("projection", projection).unwrap();
@@ -197,16 +198,5 @@ fn process_input(window: &mut glfw::Window) -> Option<CameraDirection> {
     if window.get_key(Key::A) == Action::Press {
         dirs.toggle_left();
     }
-
-    // Flying is disabled
-    // if window.get_key(Key::Space) == Action::Press {
-    //     dirs.toggle_up();
-    // }
-    //
-    // if window.get_key(Key::LeftShift) == Action::Press
-    //     || window.get_key(Key::RightShift) == Action::Press
-    // {
-    //     dirs.toggle_down();
-    // }
     return Some(dirs);
 }

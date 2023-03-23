@@ -122,13 +122,14 @@ impl From<MazeIndex> for Vector3<f32> {
 impl From<Point3<f32>> for MazeIndex {
     fn from(p: Point3<f32>) -> Self {
         let row_f = p.z;
-        let row_f = if row_f - row_f.floor() > 0.5 {
+        // 0.5 is the difference but I gave it an little extra padding of .01
+        let row_f = if row_f - row_f.floor() > 0.49 {
             row_f.ceil() as isize
         } else {
             row_f.floor() as isize
         };
         let col_f = p.x;
-        let col_f = if col_f - col_f.floor() > 0.5 {
+        let col_f = if col_f - col_f.floor() > 0.49 {
             col_f.ceil() as isize
         } else {
             col_f.floor() as isize
