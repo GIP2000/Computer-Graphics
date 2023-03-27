@@ -1,11 +1,11 @@
-use std::fs::read_to_string;
+use std::{fs::read_to_string, path::Path};
 
 use cgmath::{perspective, vec3, vec4, Deg, EuclideanSpace, Matrix4, Point3};
 use glfw::{Action, Key};
 use learn_opengl::{
     camera::{Camera, CameraDirection, CameraDirectionTrait},
     gls::{
-        buffers::{Attribute, VOs},
+        buffers::{bindable::Bindable, texture::Texture2D, Attribute, VOs},
         shader::{Shader, ShaderProgram},
     },
     window::Window,
@@ -94,6 +94,34 @@ fn main() {
     let vbo_vba =
         VOs::new(&cube_verts, &attributes, gl::TRIANGLES).expect("vbo or vba failed to bind");
 
+    // textures
+    let floor_textures = [
+        Texture2D::new(
+            image::open(&Path::new("./maze/resources/floor/albedo.jpg")).unwrap(),
+            [gl::REPEAT, gl::REPEAT],
+            [gl::LINEAR, gl::LINEAR],
+            gl::RGB,
+            None,
+        )
+        .unwrap(),
+        Texture2D::new(
+            image::open(&Path::new("./maze/resources/floor/specular.jpg")).unwrap(),
+            [gl::REPEAT, gl::REPEAT],
+            [gl::LINEAR, gl::LINEAR],
+            gl::RGB,
+            None,
+        )
+        .unwrap(),
+    ];
+
+    let floor_texture =
+        learn_opengl::gls::buffers::texture::Textures::<2>::new(core::array::from_fn(|i| {
+            &floor_textures[i]
+        }))
+        .unwrap();
+    floor_texture.bind().unwrap();
+    shader.set_uniform("ourTexture", 0).unwrap();
+
     let mut cam = Camera::new(
         Point3::from_vec(maze.get_player_loc()),
         90f32,
@@ -114,6 +142,7 @@ fn main() {
                 let new_pos: MazeIndex = cam.try_translate_camera(dir, time).into();
                 if maze[new_pos] != MazeEntry::Wall {
                     cam.translate_camera(dir, time);
+                    maze.move_player_to(new_pos);
                 }
             }
         }
@@ -131,7 +160,7 @@ fn main() {
                     }
                     maze::logic::MazeEntry::Empty => {
                         shader
-                            .set_uniform("uColor", vec4(0.0, 0f32, 1., 1.))
+                            .set_uniform("uColor", vec4(1.0, 1f32, 1., 1.))
                             .unwrap();
                         Matrix4::from_translation(vec3(x as f32, 0., y as f32))
                     }

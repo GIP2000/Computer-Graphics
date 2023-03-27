@@ -162,6 +162,10 @@ impl Maze {
         self.maze.iter()
     }
 
+    pub fn move_player_to(&mut self, new_loc: MazeIndex) {
+        self.player = new_loc;
+    }
+
     pub fn move_player(&mut self, dx: isize, dy: isize) -> Result<()> {
         if dx.abs() > 1 || dy.abs() > 1 {
             anyhow::bail!("Can't move by more than one")
