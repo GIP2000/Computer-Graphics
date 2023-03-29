@@ -1,4 +1,4 @@
-mod set_uniform;
+pub mod set_uniform;
 use anyhow::{bail, Result};
 use gl::types::*;
 use set_uniform::SetUniform;
@@ -32,16 +32,40 @@ impl ShaderProgram {
         ))
     }
 
+    fn set_uniform_dyn(&self, name: &str, data: &dyn SetUniform) -> Result<()> {
+        self.use_program();
+        if !data.has_next() {
+            unsafe {
+                let uid = self.get_uniform(name)?;
+                // if uid <= 0 {
+                //     bail!("Invalid UID")
+                // }
+                data.set_uniform(uid);
+            }
+            return Ok(());
+        }
+        for (name, d) in data.name_data_list(name) {
+            self.set_uniform_dyn(&name, d)?;
+        }
+        return Ok(());
+    }
+
     pub fn set_uniform<T: SetUniform>(&self, name: &str, data: T) -> Result<()> {
         self.use_program();
-        unsafe {
-            let uid = self.get_uniform(name)?;
-            // if uid <= 0 {
-            //     bail!("Invalid UID")
-            // }
-            data.set_uniform(uid);
+        if !data.has_next() {
+            unsafe {
+                let uid = self.get_uniform(name)?;
+                // if uid <= 0 {
+                //     bail!("Invalid UID")
+                // }
+                data.set_uniform(uid);
+            }
+            return Ok(());
         }
-        Ok(())
+        for (name, d) in data.name_data_list(name) {
+            self.set_uniform_dyn(&name, d)?;
+        }
+        return Ok(());
     }
 
     pub fn new<const N: usize>(shaders: [Shader; N]) -> Result<Self> {

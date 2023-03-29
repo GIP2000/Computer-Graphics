@@ -118,6 +118,9 @@ impl Camera {
     fn calc_camera_up(dir: Vector3<f32>, right: Vector3<f32>) -> Vector3<f32> {
         dir.cross(right)
     }
+    pub fn get_pos(&self) -> Vector3<f32> {
+        self.pos.to_vec()
+    }
 
     fn calc_camera_right(up: Vector3<f32>, dir: Vector3<f32>) -> Vector3<f32> {
         up.cross(dir).normalize()
