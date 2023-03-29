@@ -19,6 +19,9 @@ const SCR_HEIGHT: u32 = 1200;
 const VERTEX_SHADER_SOURCE: &'static str = include_str!("../../shader/vert.glsl");
 const FRAGMENT_SHADER_SOURCE: &'static str = include_str!("../../shader/frag.glsl");
 
+const VERTEX_SHADER_SOURCE_LAMP: &'static str = include_str!("../../shader/lamp_vert.glsl");
+const FRAGMENT_SHADER_SOURCE_LAMP: &'static str = include_str!("../../shader/lamp_frag.glsl");
+
 fn main() {
     let mut maze: Maze = read_to_string("./maze.txt")
         .expect("Failed to find file maze.txt")
@@ -30,6 +33,12 @@ fn main() {
     let f_shader = Shader::new(FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER)
         .expect("Failed to Compile F Shader");
     let shader = ShaderProgram::new([v_shader, f_shader]).expect("Failed to Create Shader Program");
+    let lamp_v_shader = Shader::new(VERTEX_SHADER_SOURCE_LAMP, gl::VERTEX_SHADER)
+        .expect("Failed to Compile V Shader");
+    let lamp_f_shader = Shader::new(FRAGMENT_SHADER_SOURCE_LAMP, gl::FRAGMENT_SHADER)
+        .expect("Failed to Compile F Shader");
+    let lamp_shader = ShaderProgram::new([lamp_v_shader, lamp_f_shader])
+        .expect("Failed to Create Shader Program");
     #[rustfmt::skip]
     let cube_verts: [f32; 288] = [
         // positions       // normals        // texture coords
@@ -136,11 +145,11 @@ fn main() {
         .expect("error with material");
 
     let floor_light = PointLightBuilder::default()
-        .pos(maze.get_player_loc() + vec3(0., 0., 0.))
+        .pos(maze.get_player_loc() + vec3(0., 1., 0.))
         .build();
 
     shader
-        .set_uniform("pointLight", floor_light)
+        .set_uniform("pointLight", &floor_light)
         .expect("couldn't send point light uniform");
 
     let mut cam = Camera::new(
@@ -153,9 +162,11 @@ fn main() {
     let mut projection: Matrix4<f32> =
         perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
     shader.set_uniform("projection", projection).unwrap();
-    shader.set_uniform("viewPos", cam.get_pos()).unwrap();
+    lamp_shader.set_uniform("projection", projection).unwrap();
 
     window.app_loop(|mut w| {
+        shader.use_program();
+        shader.set_uniform("viewPos", cam.get_pos()).unwrap();
         process_events(&mut w, &mut cam, &mut projection);
         let dir = process_input(&mut w.window);
         if let Some(dir) = dir {
@@ -169,7 +180,7 @@ fn main() {
             }
         }
         let view = cam.get_view();
-        shader.set_uniform("view", view).unwrap();
+        shader.set_uniform("view", view.clone()).unwrap();
 
         for (y, row) in maze.iter().enumerate() {
             for (x, entry) in row.iter().enumerate() {
@@ -202,6 +213,15 @@ fn main() {
                 shader.set_uniform("model", model).unwrap();
                 vbo_vba.draw_arrays(0, 36).unwrap();
             }
+            lamp_shader.use_program();
+            lamp_shader.set_uniform("view", view).unwrap();
+            lamp_shader
+                .set_uniform(
+                    "model",
+                    Matrix4::from_translation(floor_light.get_pos()) * Matrix4::from_scale(0.2),
+                )
+                .unwrap();
+            vbo_vba.draw_arrays(0, 36).unwrap();
         }
     });
 }
@@ -249,5 +269,13 @@ fn process_input(window: &mut glfw::Window) -> Option<CameraDirection> {
     if window.get_key(Key::A) == Action::Press {
         dirs.toggle_left();
     }
+    //
+    // if window.get_key(Key::LeftShift) == Action::Press {
+    //     dirs.toggle_down();
+    // }
+    //
+    // if window.get_key(Key::Space) == Action::Press {
+    //     dirs.toggle_up();
+    // }
     return Some(dirs);
 }

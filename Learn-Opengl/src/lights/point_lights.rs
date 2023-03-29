@@ -35,8 +35,11 @@ impl PointLight {
             specular,
         }
     }
+    pub fn get_pos(&self) -> Vector3<f32> {
+        self.pos.clone()
+    }
 }
-impl SetUniform for PointLight {
+impl SetUniform for &PointLight {
     unsafe fn set_uniform(&self, _id: i32) {
         panic!("Can't set a struct uniform directly");
     }
@@ -75,8 +78,8 @@ impl PointLightBuilder {
         PointLight::new(
             self.pos.unwrap_or(vec3(0., 0., 0.)),
             self.constant.unwrap_or(1.),
-            self.linear.unwrap_or(0.09),
-            self.qudratic.unwrap_or(0.032),
+            self.linear.unwrap_or(0.7),
+            self.qudratic.unwrap_or(1.8),
             self.ambient.unwrap_or(vec3(0.2, 0.2, 0.2)),
             self.diffuse.unwrap_or(vec3(0.5, 0.5, 0.5)),
             self.specular.unwrap_or(vec3(1., 1., 1.)),
