@@ -145,7 +145,7 @@ fn main() {
         .expect("error with material");
 
     let floor_light = PointLightBuilder::default()
-        .pos(maze.get_player_loc() + vec3(0., 1., 0.))
+        .pos(maze.get_player_loc() + vec3(0., 0., 0.))
         .build();
 
     shader
@@ -269,7 +269,7 @@ fn process_input(window: &mut glfw::Window) -> Option<CameraDirection> {
     if window.get_key(Key::A) == Action::Press {
         dirs.toggle_left();
     }
-    //
+
     // if window.get_key(Key::LeftShift) == Action::Press {
     //     dirs.toggle_down();
     // }

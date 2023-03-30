@@ -1,10 +1,9 @@
-use anyhow::Result;
 use cgmath::{vec3, Vector3};
 
-use crate::gls::shader::{set_uniform::SetUniform, ShaderProgram};
+use crate::gls::shader::set_uniform::SetUniform;
 
 pub struct PointLight {
-    pos: Vector3<f32>,
+    position: Vector3<f32>,
 
     constant: f32,
     linear: f32,
@@ -26,7 +25,7 @@ impl PointLight {
         specular: Vector3<f32>,
     ) -> Self {
         Self {
-            pos,
+            position: pos,
             constant,
             linear,
             qudratic,
@@ -36,7 +35,7 @@ impl PointLight {
         }
     }
     pub fn get_pos(&self) -> Vector3<f32> {
-        self.pos.clone()
+        self.position.clone()
     }
 }
 impl SetUniform for &PointLight {
@@ -49,7 +48,7 @@ impl SetUniform for &PointLight {
 
     fn name_data_list<'a>(&'a self, name: &'a str) -> Vec<(String, &'a dyn SetUniform)> {
         vec![
-            (format!("{name}.pos"), &self.pos),
+            (format!("{name}.position"), &self.position),
             (format!("{name}.constant"), &self.constant),
             (format!("{name}.linear"), &self.linear),
             (format!("{name}.qudratic"), &self.qudratic),
@@ -80,8 +79,8 @@ impl PointLightBuilder {
             self.constant.unwrap_or(1.),
             self.linear.unwrap_or(0.7),
             self.qudratic.unwrap_or(1.8),
-            self.ambient.unwrap_or(vec3(0.2, 0.2, 0.2)),
-            self.diffuse.unwrap_or(vec3(0.5, 0.5, 0.5)),
+            self.ambient.unwrap_or(vec3(0.5, 0.5, 0.5)),
+            self.diffuse.unwrap_or(vec3(0.8, 0.8, 0.8)),
             self.specular.unwrap_or(vec3(1., 1., 1.)),
         )
     }
