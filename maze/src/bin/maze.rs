@@ -5,7 +5,12 @@ use glfw::{Action, Key};
 use learn_opengl::{
     camera::{Camera, CameraDirection, CameraDirectionTrait},
     gls::{
-        buffers::{bindable::Bindable, texture::Texture2D, Attribute, VOs},
+        buffers::{
+            bindable::Bindable,
+            framebuffer::FrameBuffer,
+            texture::{CubeMap, Texture2D},
+            Attribute, VOs,
+        },
         shader::{Shader, ShaderProgram},
     },
     lights::{material::Material, point_lights::PointLightBuilder},
@@ -22,23 +27,40 @@ const FRAGMENT_SHADER_SOURCE: &'static str = include_str!("../../shader/frag.gls
 const VERTEX_SHADER_SOURCE_LAMP: &'static str = include_str!("../../shader/lamp_vert.glsl");
 const FRAGMENT_SHADER_SOURCE_LAMP: &'static str = include_str!("../../shader/lamp_frag.glsl");
 
+const VERTEX_SHADER_SOURCE_DEPTH: &'static str = include_str!("../../shader/depth_vs.glsl");
+const FRAGMENT_SHADER_SOURCE_DEPTH: &'static str = include_str!("../../shader/depth_fs.glsl");
+const GEOMETRY_SHADER_SOURCE_DEPTH: &'static str = include_str!("../../shader/depth_ge.glsl");
+
 fn main() {
     let mut maze: Maze = read_to_string("./maze.txt")
         .expect("Failed to find file maze.txt")
         .parse()
         .expect("Error parsing maze");
     let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl", false, false).unwrap();
-    let v_shader =
-        Shader::new(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER).expect("Failed to Compile V Shader");
-    let f_shader = Shader::new(FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER)
-        .expect("Failed to Compile F Shader");
-    let shader = ShaderProgram::new([v_shader, f_shader]).expect("Failed to Create Shader Program");
-    let lamp_v_shader = Shader::new(VERTEX_SHADER_SOURCE_LAMP, gl::VERTEX_SHADER)
-        .expect("Failed to Compile V Shader");
-    let lamp_f_shader = Shader::new(FRAGMENT_SHADER_SOURCE_LAMP, gl::FRAGMENT_SHADER)
-        .expect("Failed to Compile F Shader");
-    let lamp_shader = ShaderProgram::new([lamp_v_shader, lamp_f_shader])
-        .expect("Failed to Create Shader Program");
+    let shader = ShaderProgram::new([
+        Shader::new(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER).expect("Failed to Compile V Shader"),
+        Shader::new(FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER)
+            .expect("Failed to Compile F Normal Shader"),
+    ])
+    .expect("Failed to Create Shader Program");
+    let lamp_shader = ShaderProgram::new([
+        Shader::new(VERTEX_SHADER_SOURCE_LAMP, gl::VERTEX_SHADER)
+            .expect("Failed to Compile V Shader"),
+        Shader::new(FRAGMENT_SHADER_SOURCE_LAMP, gl::FRAGMENT_SHADER)
+            .expect("Failed to Compile F Lamp Shader"),
+    ])
+    .expect("Failed to Create Shader Program");
+
+    let depth_shader = ShaderProgram::new([
+        Shader::new(VERTEX_SHADER_SOURCE_DEPTH, gl::VERTEX_SHADER)
+            .expect("Failed to Compile V Shader"),
+        Shader::new(FRAGMENT_SHADER_SOURCE_DEPTH, gl::FRAGMENT_SHADER)
+            .expect("Failed to Compile F Depth Shader"),
+        Shader::new(GEOMETRY_SHADER_SOURCE_DEPTH, gl::GEOMETRY_SHADER)
+            .expect("Failed to Compile G Shader"),
+    ])
+    .expect("Failed to Create Shader Program Depth");
+
     #[rustfmt::skip]
     let cube_verts: [f32; 288] = [
         // positions       // normals        // texture coords
@@ -140,16 +162,29 @@ fn main() {
         .unwrap();
     floor_texture.bind().unwrap();
 
+    const SHADOW_WIDTH: i32 = 1024;
+    const SHADOW_HEIGHT: i32 = 1024;
+
+    let depth_map_fbo = FrameBuffer::new();
+
+    let cube_map = CubeMap::new(SHADOW_WIDTH, SHADOW_HEIGHT, gl::DEPTH_COMPONENT)
+        .expect("Couldn't make cube map");
+
+    depth_map_fbo
+        .attach_tex(&cube_map, gl::DEPTH_ATTACHMENT)
+        .expect("failled attaching cubemap to depth buffer");
+
     shader
         .set_uniform("material", Material::new(0, 1, 0.5))
         .expect("error with material");
+    shader.set_uniform("depthMap", 2).unwrap();
 
-    let floor_light = PointLightBuilder::default()
+    let point_light = PointLightBuilder::default()
         .pos(maze.get_player_loc() + vec3(0., 0., 0.))
         .build();
 
     shader
-        .set_uniform("pointLight", &floor_light)
+        .set_uniform("pointLight", &point_light)
         .expect("couldn't send point light uniform");
 
     let mut cam = Camera::new(
@@ -158,15 +193,73 @@ fn main() {
         0f32,
         vec3(2.5, 2.5, 2.5),
     );
+    shader.set_uniform("viewPos", cam.get_pos()).unwrap();
 
     let mut projection: Matrix4<f32> =
         perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
     shader.set_uniform("projection", projection).unwrap();
     lamp_shader.set_uniform("projection", projection).unwrap();
 
+    let near_plane = 1f32;
+    let far_plane = 25f32;
+    shader.set_uniform("far_plane", far_plane).unwrap();
+
+    let shadow_proj = perspective(
+        Deg(90.),
+        SHADOW_WIDTH as f32 / SHADOW_HEIGHT as f32,
+        near_plane,
+        far_plane,
+    );
+
+    let shadow_transforms = vec![
+        shadow_proj
+            * Matrix4::look_at_rh(
+                Point3::from_vec(point_light.get_pos()),
+                Point3::new(1., 0., 0.),
+                vec3(0., -1., 0.),
+            ),
+        shadow_proj
+            * Matrix4::look_at_rh(
+                Point3::from_vec(point_light.get_pos()),
+                Point3::new(-1., 0., 0.),
+                vec3(0., -1., 0.),
+            ),
+        shadow_proj
+            * Matrix4::look_at_rh(
+                Point3::from_vec(point_light.get_pos()),
+                Point3::new(0., 1., 0.),
+                vec3(0., 0., 1.),
+            ),
+        shadow_proj
+            * Matrix4::look_at_rh(
+                Point3::from_vec(point_light.get_pos()),
+                Point3::new(0., -1., 0.),
+                vec3(0., 0., -1.),
+            ),
+        shadow_proj
+            * Matrix4::look_at_rh(
+                Point3::from_vec(point_light.get_pos()),
+                Point3::new(0., 0., 1.),
+                vec3(0., -1., 0.),
+            ),
+        shadow_proj
+            * Matrix4::look_at_rh(
+                Point3::from_vec(point_light.get_pos()),
+                Point3::new(0., 0., -1.),
+                vec3(0., -1., 0.),
+            ),
+    ];
+    depth_shader
+        .set_uniform("shadowMatricies", shadow_transforms)
+        .unwrap();
+    depth_shader.set_uniform("far_plane", far_plane).unwrap();
+    depth_shader
+        .set_uniform("lightPos", point_light.get_pos())
+        .unwrap();
+
     window.app_loop(|mut w| {
+        // Pre Stuff
         shader.use_program();
-        shader.set_uniform("viewPos", cam.get_pos()).unwrap();
         process_events(&mut w, &mut cam, &mut projection);
         let dir = process_input(&mut w.window);
         if let Some(dir) = dir {
@@ -175,55 +268,57 @@ fn main() {
                 let new_pos: MazeIndex = cam.try_translate_camera(dir, time).into();
                 if maze[new_pos] != MazeEntry::Wall {
                     cam.translate_camera(dir, time);
+                    shader.set_uniform("viewPos", cam.get_pos()).unwrap();
                     maze.move_player_to(new_pos);
                 }
             }
         }
         let view = cam.get_view();
-        shader.set_uniform("view", view.clone()).unwrap();
+        // 1. render scene to depth cubemap
+        //
+        unsafe {
+            gl::Viewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+            depth_map_fbo.bind().unwrap();
+            gl::Clear(gl::DEPTH_BUFFER_BIT);
+        }
 
-        for (y, row) in maze.iter().enumerate() {
-            for (x, entry) in row.iter().enumerate() {
-                let model: Matrix4<f32> = match entry {
-                    maze::logic::MazeEntry::Wall => {
-                        shader
-                            .set_uniform("uColor", vec4(1.0, 0f32, 0., 1.))
-                            .unwrap();
-                        Matrix4::from_translation(vec3(x as f32, 1., y as f32))
-                    }
-                    maze::logic::MazeEntry::Empty => {
-                        shader
-                            .set_uniform("uColor", vec4(1.0, 1f32, 1., 1.))
-                            .unwrap();
-                        Matrix4::from_translation(vec3(x as f32, 0., y as f32))
-                    }
-                    maze::logic::MazeEntry::Start => {
-                        shader
-                            .set_uniform("uColor", vec4(0.0, 1f32, 0., 1.))
-                            .unwrap();
-                        Matrix4::from_translation(vec3(x as f32, 0., y as f32))
-                    }
-                    maze::logic::MazeEntry::End => {
-                        shader
-                            .set_uniform("uColor", vec4(1.0, 1f32, 0., 1.))
-                            .unwrap();
-                        Matrix4::from_translation(vec3(x as f32, 0., y as f32))
-                    }
-                };
-                shader.set_uniform("model", model).unwrap();
-                vbo_vba.draw_arrays(0, 36).unwrap();
-            }
-            lamp_shader.use_program();
-            lamp_shader.set_uniform("view", view).unwrap();
-            lamp_shader
-                .set_uniform(
-                    "model",
-                    Matrix4::from_translation(floor_light.get_pos()) * Matrix4::from_scale(0.2),
-                )
-                .unwrap();
+        depth_shader.use_program();
+        render(&vbo_vba, &depth_shader, &maze);
+        depth_map_fbo.unbind().unwrap();
+
+        // 2. render normally
+        unsafe {
+            gl::Viewport(0, 0, SCR_WIDTH as i32, SCR_HEIGHT as i32);
+            gl::Clear(gl::DEPTH_BUFFER_BIT | gl::COLOR_BUFFER_BIT);
+        }
+        shader.set_uniform("view", view.clone()).unwrap();
+        render(&vbo_vba, &shader, &maze);
+
+        lamp_shader.use_program();
+        lamp_shader.set_uniform("view", view).unwrap();
+        lamp_shader
+            .set_uniform(
+                "model",
+                Matrix4::from_translation(point_light.get_pos()) * Matrix4::from_scale(0.2),
+            )
+            .unwrap();
+        vbo_vba.draw_arrays(0, 36).unwrap();
+    });
+}
+
+fn render(vbo_vba: &VOs, shader: &ShaderProgram, maze: &Maze) {
+    for (y, row) in maze.iter().enumerate() {
+        for (x, entry) in row.iter().enumerate() {
+            let model: Matrix4<f32> = match entry {
+                maze::logic::MazeEntry::Wall => {
+                    Matrix4::from_translation(vec3(x as f32, 1., y as f32))
+                }
+                _ => Matrix4::from_translation(vec3(x as f32, 0., y as f32)),
+            };
+            shader.set_uniform("model", model).unwrap();
             vbo_vba.draw_arrays(0, 36).unwrap();
         }
-    });
+    }
 }
 
 fn process_events(w: &mut Window, cam: &mut Camera, proj: &mut Matrix4<f32>) -> bool {

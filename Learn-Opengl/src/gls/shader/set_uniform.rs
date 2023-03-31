@@ -47,6 +47,16 @@ impl SetUniform for Matrix4<f32> {
     }
 }
 
+impl SetUniform for Vec<Matrix4<f32>> {
+    unsafe fn set_uniform(&self, id: i32) {
+        gl::UniformMatrix4fv(id, self.len() as i32, gl::FALSE, self[0].as_ptr());
+    }
+
+    fn name_data_list<'a>(&'a self, name: &'a str) -> Vec<(String, &'a dyn SetUniform)> {
+        vec![(name.to_owned(), self)]
+    }
+}
+
 impl SetUniform for Vec<Vector4<f32>> {
     unsafe fn set_uniform(&self, id: i32) {
         gl::Uniform4fv(id, self.len() as i32, self[0].as_ptr());

@@ -1,5 +1,5 @@
 pub mod set_uniform;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use gl::types::*;
 use set_uniform::SetUniform;
 use std::{ffi::CString, ptr};
@@ -120,17 +120,24 @@ impl Shader {
             gl::CompileShader(shader);
 
             let mut success = gl::FALSE as GLint;
-            let mut info_log: Vec<char> = Vec::with_capacity(512);
-            info_log.set_len(512 - 1); // subtract 1 to skip the trailing null character
+            let mut info_log: Vec<u8> = Vec::with_capacity(1024);
+            info_log.set_len(1024 - 1); // subtract 1 to skip the trailing null character
             gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
             if success != gl::TRUE as GLint {
                 gl::GetShaderInfoLog(
                     shader,
-                    512,
+                    1024,
                     ptr::null_mut(),
                     info_log.as_mut_ptr() as *mut GLchar,
                 );
-                bail!("ERROR::SHADER::VERTEX::COMPILATION_FAILED\n{:?}", info_log);
+                let info_log = info_log
+                    .split(|&c| c == 0)
+                    .next()
+                    .context("Malformed Error message")?;
+                bail!(
+                    "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n{}",
+                    std::str::from_utf8(info_log)?
+                );
             }
         }
         Ok(Self { shader })
