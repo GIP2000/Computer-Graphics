@@ -177,7 +177,8 @@ fn main() {
     shader
         .set_uniform("material", Material::new(0, 1, 0.5))
         .expect("error with material");
-    shader.set_uniform("depthMap", 2).unwrap();
+
+    shader.set_uniform("depthMap", 1).unwrap();
 
     let point_light = PointLightBuilder::default()
         .pos(maze.get_player_loc() + vec3(0., 0., 0.))
@@ -197,6 +198,7 @@ fn main() {
 
     let mut projection: Matrix4<f32> =
         perspective(Deg(45.0), SCR_WIDTH as f32 / SCR_HEIGHT as f32, 0.1, 100.0);
+
     shader.set_uniform("projection", projection).unwrap();
     lamp_shader.set_uniform("projection", projection).unwrap();
 
@@ -259,7 +261,6 @@ fn main() {
 
     window.app_loop(|mut w| {
         // Pre Stuff
-        shader.use_program();
         process_events(&mut w, &mut cam, &mut projection);
         let dir = process_input(&mut w.window);
         if let Some(dir) = dir {
@@ -292,6 +293,7 @@ fn main() {
             gl::Clear(gl::DEPTH_BUFFER_BIT | gl::COLOR_BUFFER_BIT);
         }
         shader.set_uniform("view", view.clone()).unwrap();
+        cube_map.bind().unwrap();
         render(&vbo_vba, &shader, &maze);
 
         lamp_shader.use_program();

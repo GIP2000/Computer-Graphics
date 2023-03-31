@@ -50,7 +50,6 @@ void main()
 
 
     FragColor = vec4(CalcPointLight(pointLight, norm, FragPos, viewDir), 1.0);
-    // FragColor = vec4(result, 1.0);
 }
 
 
@@ -73,9 +72,10 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     ambient *= attenuation;
     diffuse *= attenuation;
     specular *= attenuation;
-    // return (ambient + diffuse + specular);
+
     float shadow = ShadowCalculations(fragPos);
-    return (ambient + (1.0 - shadow) * (diffuse + specular)) ;
+    return vec3(0.0,0.0,1.0);
+    // return (ambient + (1.0 - shadow) * (diffuse + specular)) ;
 }
 
 float ShadowCalculations(vec3 fragPos){
@@ -129,7 +129,8 @@ float ShadowCalculations(vec3 fragPos){
     float diskRadius = (1.0 + (viewDistance / far_plane)) / 25.0;
     for(int i = 0; i < samples; ++i)
     {
-        float closestDepth = texture(depthMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
+        // this is the bad line of code
+        float closestDepth = texture(depthMap fragToLight + gridSamplingDisk[i] * diskRadius).r;
         closestDepth *= far_plane;   // undo mapping [0;1]
         if(currentDepth - bias > closestDepth) {
             shadow += 1.0;

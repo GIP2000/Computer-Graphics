@@ -53,7 +53,7 @@ impl FrameBuffer {
         attachment: gl::types::GLenum,
     ) -> Result<()> {
         self.bind()?;
-        texture.bind()?;
+        // texture.bind()?;
         unsafe {
             gl::FramebufferTexture2D(
                 gl::FRAMEBUFFER,
