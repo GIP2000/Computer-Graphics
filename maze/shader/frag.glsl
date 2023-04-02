@@ -73,9 +73,10 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     diffuse *= attenuation;
     specular *= attenuation;
 
-    float shadow = ShadowCalculations(fragPos);
-    return vec3(0.0,0.0,1.0);
-    // return (ambient + (1.0 - shadow) * (diffuse + specular)) ;
+    // float shadow = ShadowCalculations(fragPos);
+    float shadow = 0.0;
+    // return vec3(0.0,0.0,1.0);
+    return (ambient + (1.0 - shadow) * (diffuse + specular)) ;
 }
 
 float ShadowCalculations(vec3 fragPos){
@@ -130,7 +131,7 @@ float ShadowCalculations(vec3 fragPos){
     for(int i = 0; i < samples; ++i)
     {
         // this is the bad line of code
-        float closestDepth = texture(depthMap fragToLight + gridSamplingDisk[i] * diskRadius).r;
+        float closestDepth = texture(depthMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
         closestDepth *= far_plane;   // undo mapping [0;1]
         if(currentDepth - bias > closestDepth) {
             shadow += 1.0;
