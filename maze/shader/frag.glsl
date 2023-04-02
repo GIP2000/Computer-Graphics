@@ -30,6 +30,8 @@ uniform Material material;
 uniform float far_plane;
 uniform samplerCube depthMap;
 
+uniform bool show_depth;
+
 
 vec3 gridSamplingDisk[20] = vec3[](
    vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1),
@@ -48,8 +50,11 @@ void main()
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
 
-
-    FragColor = vec4(CalcPointLight(pointLight, norm, FragPos, viewDir), 1.0);
+    if(show_depth) {
+        CalcPointLight(pointLight, norm, FragPos, viewDir);
+    } else {
+        FragColor = vec4(CalcPointLight(pointLight, norm, FragPos, viewDir), 1.0);
+    }
 }
 
 
@@ -74,8 +79,6 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     specular *= attenuation;
 
     float shadow = ShadowCalculations(fragPos);
-    // float shadow = 0.0;
-    // return vec3(0.0,0.0,1.0);
     return (ambient + (1.0 - shadow) * (diffuse + specular)) ;
 }
 
@@ -120,14 +123,12 @@ float ShadowCalculations(vec3 fragPos){
     // shadow /= (samples * samples * samples);
 
 
-
-
-
     float shadow = 0.0;
     float bias = 0.15;
     int samples = 20;
     float viewDistance = length(viewPos - fragPos);
     float diskRadius = (1.0 + (viewDistance / far_plane)) / 25.0;
+    float max_depth = 0.0;
     for(int i = 0; i < samples; ++i)
     {
         // this is the bad line of code
@@ -136,11 +137,14 @@ float ShadowCalculations(vec3 fragPos){
         if(currentDepth - bias > closestDepth) {
             shadow += 1.0;
         }
+        max_depth = max_depth > closestDepth ? max_depth: closestDepth;
     }
     shadow /= float(samples);
 
     // display closestDepth as debug (to visualize depth cubemap)
-    // FragColor = vec4(vec3(closestDepth / far_plane), 1.0);
+    if(show_depth) {
+        FragColor = vec4(vec3(max_depth / far_plane), 1.0);
+    }
 
     return shadow;
 }

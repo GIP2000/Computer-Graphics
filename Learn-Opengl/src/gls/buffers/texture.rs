@@ -4,7 +4,7 @@ use gl::types::GLenum;
 use std::{ffi::c_void, ptr};
 
 pub struct Textures<'a, const N: usize> {
-    textures: [&'a Texture2D; N],
+    textures: [&'a dyn Tex2DTrait; N],
 }
 
 impl<'a, const N: usize> Bindable for Textures<'a, N> {
@@ -20,7 +20,7 @@ impl<'a, const N: usize> Bindable for Textures<'a, N> {
 }
 
 impl<'a, const N: usize> Textures<'a, N> {
-    pub fn new(textures: [&'a Texture2D; N]) -> Result<Self> {
+    pub fn new(textures: [&'a dyn Tex2DTrait; N]) -> Result<Self> {
         let mut max = 0;
         unsafe {
             gl::GetIntegerv(gl::MAX_COMBINED_TEXTURE_IMAGE_UNITS, &mut max);
@@ -169,7 +169,7 @@ impl Texture2D {
         }
         let tex = Self { tex };
 
-        tex.bind();
+        tex.bind().unwrap();
 
         unsafe {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, x as i32);

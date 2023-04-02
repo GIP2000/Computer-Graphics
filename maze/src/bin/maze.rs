@@ -8,7 +8,7 @@ use learn_opengl::{
         buffers::{
             bindable::Bindable,
             framebuffer::FrameBuffer,
-            texture::{CubeMap, Texture2D},
+            texture::{CubeMap, Tex2DTrait, Texture2D},
             Attribute, VOs,
         },
         shader::{Shader, ShaderProgram},
@@ -37,6 +37,8 @@ fn main() {
         .parse()
         .expect("Error parsing maze");
     let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl", false, false).unwrap();
+    window.window.set_framebuffer_size_polling(true);
+
     let shader = ShaderProgram::new([
         Shader::new(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER).expect("Failed to Compile V Shader"),
         Shader::new(FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER)
@@ -135,33 +137,6 @@ fn main() {
     let vbo_vba =
         VOs::new(&cube_verts, &attributes, gl::TRIANGLES).expect("vbo or vba failed to bind");
 
-    // textures
-    let floor_textures = [
-        Texture2D::new(
-            image::open(&Path::new("./maze/resources/floor/albedo.jpg")).unwrap(),
-            [gl::REPEAT, gl::REPEAT],
-            [gl::LINEAR, gl::LINEAR],
-            gl::RGB,
-            None,
-        )
-        .unwrap(),
-        Texture2D::new(
-            image::open(&Path::new("./maze/resources/floor/specular.jpg")).unwrap(),
-            [gl::REPEAT, gl::REPEAT],
-            [gl::LINEAR, gl::LINEAR],
-            gl::RGB,
-            None,
-        )
-        .unwrap(),
-    ];
-
-    let floor_texture =
-        learn_opengl::gls::buffers::texture::Textures::<2>::new(core::array::from_fn(|i| {
-            &floor_textures[i]
-        }))
-        .unwrap();
-    floor_texture.bind().unwrap();
-
     const SHADOW_WIDTH: i32 = 1024;
     const SHADOW_HEIGHT: i32 = 1024;
 
@@ -181,7 +156,7 @@ fn main() {
         .set_uniform("material", Material::new(0, 1, 0.5))
         .expect("error with material");
 
-    shader.set_uniform("depthMap", 1).unwrap();
+    shader.set_uniform("depthMap", 2).unwrap();
 
     let point_light = PointLightBuilder::default()
         .pos(maze.get_player_loc() + vec3(0., 0., 0.))
@@ -255,17 +230,47 @@ fn main() {
             ),
     ];
     depth_shader
-        .set_uniform("shadowMatricies", shadow_transforms)
+        .set_uniform("shadowMatrices", shadow_transforms)
         .unwrap();
     depth_shader.set_uniform("far_plane", far_plane).unwrap();
     depth_shader
         .set_uniform("lightPos", point_light.get_pos())
         .unwrap();
 
+    // textures
+    let floor_textures = [
+        Texture2D::new(
+            image::open(&Path::new("./maze/resources/floor/albedo.jpg")).unwrap(),
+            [gl::REPEAT, gl::REPEAT],
+            [gl::LINEAR, gl::LINEAR],
+            gl::RGB,
+            None,
+        )
+        .unwrap(),
+        Texture2D::new(
+            image::open(&Path::new("./maze/resources/floor/specular.jpg")).unwrap(),
+            [gl::REPEAT, gl::REPEAT],
+            [gl::LINEAR, gl::LINEAR],
+            gl::RGB,
+            None,
+        )
+        .unwrap(),
+    ];
+
+    let floor_texture = learn_opengl::gls::buffers::texture::Textures::<3>::new([
+        &floor_textures[0] as &dyn Tex2DTrait,
+        &floor_textures[1] as &dyn Tex2DTrait,
+        &cube_map as &dyn Tex2DTrait,
+    ])
+    .unwrap();
+    floor_texture.bind().unwrap();
+    cube_map.bind().unwrap();
+
+    let mut prev_show_depth = false;
     window.app_loop(|mut w| {
         // Pre Stuff
         process_events(&mut w, &mut cam, &mut projection);
-        let dir = process_input(&mut w.window);
+        let dir = process_input(&mut w.window, &shader, &mut prev_show_depth);
         if let Some(dir) = dir {
             if dir != 0 {
                 let time = w.delta_time;
@@ -296,7 +301,6 @@ fn main() {
             gl::Clear(gl::DEPTH_BUFFER_BIT | gl::COLOR_BUFFER_BIT);
         }
         shader.set_uniform("view", view.clone()).unwrap();
-        cube_map.bind().unwrap();
         render(&vbo_vba, &shader, &maze);
 
         lamp_shader.use_program();
@@ -316,7 +320,12 @@ fn render(vbo_vba: &VOs, shader: &ShaderProgram, maze: &Maze) {
         for (x, entry) in row.iter().enumerate() {
             let model: Matrix4<f32> = match entry {
                 maze::logic::MazeEntry::Wall => {
-                    Matrix4::from_translation(vec3(x as f32, 1., y as f32))
+                    let model = Matrix4::from_translation(vec3(x as f32, 1., y as f32));
+                    shader
+                        .set_uniform("model", model * Matrix4::from_translation(vec3(0., 1., 0.)))
+                        .unwrap();
+                    vbo_vba.draw_arrays(0, 36).unwrap();
+                    model
                 }
                 _ => Matrix4::from_translation(vec3(x as f32, 0., y as f32)),
             };
@@ -347,7 +356,11 @@ fn process_events(w: &mut Window, cam: &mut Camera, proj: &mut Matrix4<f32>) -> 
     }
     return false;
 }
-fn process_input(window: &mut glfw::Window) -> Option<CameraDirection> {
+fn process_input(
+    window: &mut glfw::Window,
+    shader: &ShaderProgram,
+    prev_show_depth: &mut bool,
+) -> Option<CameraDirection> {
     if window.get_key(Key::Escape) == Action::Press {
         window.set_should_close(true);
         return None;
@@ -370,12 +383,17 @@ fn process_input(window: &mut glfw::Window) -> Option<CameraDirection> {
         dirs.toggle_left();
     }
 
-    // if window.get_key(Key::LeftShift) == Action::Press {
-    //     dirs.toggle_down();
-    // }
-    //
-    // if window.get_key(Key::Space) == Action::Press {
-    //     dirs.toggle_up();
-    // }
+    if window.get_key(Key::LeftShift) == Action::Press {
+        dirs.toggle_down();
+    }
+
+    if window.get_key(Key::Space) == Action::Press {
+        dirs.toggle_up();
+    }
+
+    if window.get_key(Key::T) == Action::Press {
+        *prev_show_depth = !(*prev_show_depth);
+        shader.set_uniform("show_depth", *prev_show_depth).unwrap();
+    }
     return Some(dirs);
 }
