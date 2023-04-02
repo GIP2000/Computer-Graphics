@@ -174,6 +174,9 @@ fn main() {
         .attach_tex(&cube_map, gl::DEPTH_ATTACHMENT)
         .expect("failled attaching cubemap to depth buffer");
 
+    depth_map_fbo.drr().unwrap();
+    depth_map_fbo.unbind().unwrap();
+
     shader
         .set_uniform("material", Material::new(0, 1, 0.5))
         .expect("error with material");
@@ -202,8 +205,8 @@ fn main() {
     shader.set_uniform("projection", projection).unwrap();
     lamp_shader.set_uniform("projection", projection).unwrap();
 
-    let near_plane = 1f32;
-    let far_plane = 25f32;
+    let near_plane = 1.0f32;
+    let far_plane = 25.0f32;
     shader.set_uniform("far_plane", far_plane).unwrap();
 
     let shadow_proj = perspective(
@@ -217,37 +220,37 @@ fn main() {
         shadow_proj
             * Matrix4::look_at_rh(
                 Point3::from_vec(point_light.get_pos()),
-                Point3::new(1., 0., 0.),
+                Point3::from_vec(point_light.get_pos() + vec3(1., 0., 0.)),
                 vec3(0., -1., 0.),
             ),
         shadow_proj
             * Matrix4::look_at_rh(
                 Point3::from_vec(point_light.get_pos()),
-                Point3::new(-1., 0., 0.),
+                Point3::from_vec(point_light.get_pos() + vec3(-1., 0., 0.)),
                 vec3(0., -1., 0.),
             ),
         shadow_proj
             * Matrix4::look_at_rh(
                 Point3::from_vec(point_light.get_pos()),
-                Point3::new(0., 1., 0.),
+                Point3::from_vec(point_light.get_pos() + vec3(0., 1., 0.)),
                 vec3(0., 0., 1.),
             ),
         shadow_proj
             * Matrix4::look_at_rh(
                 Point3::from_vec(point_light.get_pos()),
-                Point3::new(0., -1., 0.),
+                Point3::from_vec(point_light.get_pos() + vec3(0., -1., 0.)),
                 vec3(0., 0., -1.),
             ),
         shadow_proj
             * Matrix4::look_at_rh(
                 Point3::from_vec(point_light.get_pos()),
-                Point3::new(0., 0., 1.),
+                Point3::from_vec(point_light.get_pos() + vec3(0., 0., 1.)),
                 vec3(0., -1., 0.),
             ),
         shadow_proj
             * Matrix4::look_at_rh(
                 Point3::from_vec(point_light.get_pos()),
-                Point3::new(0., 0., -1.),
+                Point3::from_vec(point_light.get_pos() + vec3(0., 0., -1.)),
                 vec3(0., -1., 0.),
             ),
     ];
@@ -286,8 +289,8 @@ fn main() {
         depth_shader.use_program();
         render(&vbo_vba, &depth_shader, &maze);
         depth_map_fbo.unbind().unwrap();
-
-        // 2. render normally
+        //
+        // // 2. render normally
         unsafe {
             gl::Viewport(0, 0, SCR_WIDTH as i32, SCR_HEIGHT as i32);
             gl::Clear(gl::DEPTH_BUFFER_BIT | gl::COLOR_BUFFER_BIT);

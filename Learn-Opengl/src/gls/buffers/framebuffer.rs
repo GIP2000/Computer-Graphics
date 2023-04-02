@@ -55,13 +55,7 @@ impl FrameBuffer {
         self.bind()?;
         // texture.bind()?;
         unsafe {
-            gl::FramebufferTexture2D(
-                gl::FRAMEBUFFER,
-                attachment,
-                gl::TEXTURE_2D,
-                *texture.get_tex(),
-                0,
-            );
+            gl::FramebufferTexture(gl::FRAMEBUFFER, attachment, *texture.get_tex(), 0);
         }
         Ok(())
     }
