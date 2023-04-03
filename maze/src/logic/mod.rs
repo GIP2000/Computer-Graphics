@@ -1,10 +1,11 @@
 use anyhow::Result;
-use cgmath::{vec3, Point3, Vector3};
+use cgmath::{vec3, EuclideanSpace, Matrix4, Point3, Vector3};
+use learn_opengl::lights::point_lights::{PointLight, PointLightBuilder};
 use std::{fmt::Display, ops::Index, slice::Iter, str::FromStr};
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum MazeEntry {
-    Empty,
+    Empty(bool),
     Wall,
     Start,
     End,
@@ -13,8 +14,9 @@ pub enum MazeEntry {
 impl From<&MazeEntry> for char {
     fn from(entry: &MazeEntry) -> Self {
         match entry {
-            MazeEntry::Empty => '_',
+            MazeEntry::Empty(false) => '_',
             MazeEntry::Wall => '|',
+            MazeEntry::Empty(true) => 'L',
             MazeEntry::Start => 'S',
             MazeEntry::End => 'E',
         }
@@ -26,8 +28,9 @@ impl FromStr for MazeEntry {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
-            "_" => Ok(MazeEntry::Empty),
+            "_" => Ok(MazeEntry::Empty(false)),
             "|" => Ok(MazeEntry::Wall),
+            "L" => Ok(MazeEntry::Empty(true)),
             "S" => Ok(MazeEntry::Start),
             "E" => Ok(MazeEntry::End),
             _ => anyhow::bail!("Invalid Str"),
@@ -35,9 +38,11 @@ impl FromStr for MazeEntry {
     }
 }
 
+#[derive(Debug)]
 pub struct Maze {
     maze: Vec<Vec<MazeEntry>>,
     player: MazeIndex,
+    lights: Vec<PointLight>,
 }
 
 impl Display for Maze {
@@ -68,6 +73,8 @@ impl FromStr for Maze {
         let mut start = MazeIndex::new(0, 0);
         let mut has_start = false;
         let mut has_end = false;
+        let mut lights = vec![];
+        let mut start_light = 2;
         let maze: Vec<Vec<MazeEntry>> = s
             .lines()
             .enumerate()
@@ -76,12 +83,40 @@ impl FromStr for Maze {
                     .enumerate()
                     .map(|(ci, entry)| {
                         let entry = entry.parse()?;
+                        use MazeEntry::*;
                         match entry {
-                            MazeEntry::Start => {
-                                start = MazeIndex::new(ci as isize, ri as isize);
-                                has_start = true
+                            Start => {
+                                start = MazeIndex::new(ri as isize, ci as isize);
+                                has_start = true;
+                                lights.push(
+                                    PointLightBuilder::default()
+                                        .pos(start.into())
+                                        .color(vec3(0.0, 0.0, 1.0))
+                                        .depth_map(start_light)
+                                        .build()?,
+                                );
+                                start_light += 1;
                             }
-                            MazeEntry::End => has_end = true,
+                            End => {
+                                has_end = true;
+                                lights.push(
+                                    PointLightBuilder::default()
+                                        .pos(MazeIndex::new(ri as isize, ci as isize).into())
+                                        .color(vec3(0.0, 1.0, 1.0))
+                                        .depth_map(start_light)
+                                        .build()?,
+                                );
+                                start_light += 1;
+                            }
+                            Empty(true) => {
+                                lights.push(
+                                    PointLightBuilder::default()
+                                        .pos(MazeIndex::new(ri as isize, ci as isize).into())
+                                        .depth_map(start_light)
+                                        .build()?,
+                                );
+                                start_light += 1;
+                            }
                             _ => {}
                         };
                         return Ok(entry);
@@ -97,7 +132,7 @@ impl FromStr for Maze {
             anyhow::bail!("Invalid No End point defined")
         }
 
-        return Ok(Self::new(maze, start));
+        return Ok(Self::new(maze, start, lights));
     }
 }
 
@@ -116,6 +151,12 @@ impl MazeIndex {
 impl From<MazeIndex> for Vector3<f32> {
     fn from(mi: MazeIndex) -> Self {
         vec3(mi.col as f32, 1.0, mi.row as f32)
+    }
+}
+
+impl From<Vector3<f32>> for MazeIndex {
+    fn from(v: Vector3<f32>) -> Self {
+        Point3::from_vec(v).into()
     }
 }
 
@@ -146,10 +187,11 @@ impl Index<MazeIndex> for Maze {
 }
 
 impl Maze {
-    fn new(maze: Vec<Vec<MazeEntry>>, start: MazeIndex) -> Self {
+    fn new(maze: Vec<Vec<MazeEntry>>, start: MazeIndex, lights: Vec<PointLight>) -> Self {
         Self {
             maze,
             player: start,
+            lights,
         }
     }
 
@@ -159,6 +201,10 @@ impl Maze {
 
     pub fn iter(&self) -> Iter<Vec<MazeEntry>> {
         self.maze.iter()
+    }
+
+    pub fn get_lights(&self) -> &Vec<PointLight> {
+        &self.lights
     }
 
     pub fn move_player_to(&mut self, new_loc: MazeIndex) {

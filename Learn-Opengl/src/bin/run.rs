@@ -1,6 +1,6 @@
 use glfw::{Action, Context, Key};
 use learn_opengl::camera::{Camera, CameraDirection, CameraDirectionTrait};
-use learn_opengl::gls::buffers::texture::{Texture2D, Textures};
+use learn_opengl::gls::buffers::texture::{Tex2DTrait, Texture2D, Textures};
 use learn_opengl::gls::buffers::{bindable::Bindable, Attribute, VOs};
 use learn_opengl::gls::shader::{Shader, ShaderProgram};
 use learn_opengl::window::Window;
@@ -151,7 +151,7 @@ fn main() {
         shader.set_uniform("view", view).unwrap();
 
         shader.use_program();
-        let texs = Textures::new([&texture1, &texture2]).unwrap();
+        let texs = Textures::new([&texture1 as &dyn Tex2DTrait, &texture2].as_slice()).unwrap();
         texs.bind().unwrap();
 
         for (_i, pos) in cube_positions.iter().enumerate() {

@@ -1,5 +1,6 @@
 use crate::gls::shader::set_uniform::SetUniform;
 
+#[derive(Debug)]
 pub struct Material {
     diffuse: i32,
     specular: i32,
@@ -21,7 +22,7 @@ impl SetUniform for Material {
         panic!("can't set nested types");
     }
 
-    fn name_data_list<'a>(&'a self, name: &'a str) -> Vec<(String, &'a dyn SetUniform)> {
+    fn name_data_list<'a>(&'a self, name: &str) -> Vec<(String, &'a dyn SetUniform)> {
         vec![
             (format!("{}.diffuse", name), &self.diffuse),
             (format!("{}.specular", name), &self.specular),

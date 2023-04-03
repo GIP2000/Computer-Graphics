@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use super::{bindable::Bindable, texture::Tex2DTrait};
+#[derive(Debug)]
 pub struct FrameBuffer {
     fbo: u32,
 }

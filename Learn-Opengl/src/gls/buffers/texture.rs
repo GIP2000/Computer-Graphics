@@ -3,11 +3,11 @@ use anyhow::{bail, Context, Result};
 use gl::types::GLenum;
 use std::{ffi::c_void, ptr};
 
-pub struct Textures<'a, const N: usize> {
-    textures: [&'a dyn Tex2DTrait; N],
+pub struct Textures<'a> {
+    textures: Vec<&'a dyn Tex2DTrait>,
 }
 
-impl<'a, const N: usize> Bindable for Textures<'a, N> {
+impl<'a> Bindable for Textures<'a> {
     fn bind(&self) -> Result<()> {
         for (i, texture) in self.textures.iter().enumerate() {
             unsafe {
@@ -19,8 +19,8 @@ impl<'a, const N: usize> Bindable for Textures<'a, N> {
     }
 }
 
-impl<'a, const N: usize> Textures<'a, N> {
-    pub fn new(textures: [&'a dyn Tex2DTrait; N]) -> Result<Self> {
+impl<'a> Textures<'a> {
+    pub fn new(textures: &[&'a dyn Tex2DTrait]) -> Result<Self> {
         let mut max = 0;
         unsafe {
             gl::GetIntegerv(gl::MAX_COMBINED_TEXTURE_IMAGE_UNITS, &mut max);
@@ -28,7 +28,9 @@ impl<'a, const N: usize> Textures<'a, N> {
         if textures.len() as i32 >= max {
             bail!("Too many textures attempted")
         }
-        Ok(Self { textures })
+        Ok(Self {
+            textures: textures.iter().cloned().collect::<Vec<_>>(),
+        })
     }
 }
 

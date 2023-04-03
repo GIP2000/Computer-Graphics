@@ -9,6 +9,7 @@ struct Material {
 
 struct PointLight {
     vec3 position;
+    vec3 color;
 
     float constant;
     float linear;
@@ -17,20 +18,23 @@ struct PointLight {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    samplerCube depthMap;
 };
 
 in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCords;
-in vec4 ourColor;
+#define LIGHT_MAX 10
 
 uniform vec3 viewPos;
-uniform PointLight pointLight;
+uniform PointLight pointLight[LIGHT_MAX];
+uniform int light_num;
 uniform Material material;
 uniform float far_plane;
-uniform samplerCube depthMap;
 
-uniform bool show_depth;
+
+#define CHECK(I) if (I < light_num) {result += CalcPointLight(pointLight[I], norm, fragPos, viewDir);} else {return result;}
 
 
 vec3 gridSamplingDisk[20] = vec3[](
@@ -42,7 +46,23 @@ vec3 gridSamplingDisk[20] = vec3[](
 );
 
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
-float ShadowCalculations(vec3 fragPos);
+float ShadowCalculations(PointLight light, vec3 fragPos);
+
+vec3 PointLoops(vec3 norm, vec3 fragPos, vec3 viewDir) {
+    vec3 result = vec3(0.0);
+    CHECK(0)
+    CHECK(1)
+    CHECK(2)
+    CHECK(3)
+    CHECK(4)
+    CHECK(5)
+    CHECK(6)
+    CHECK(7)
+    CHECK(8)
+    CHECK(9)
+    return result;
+
+}
 
 void main()
 {
@@ -50,17 +70,17 @@ void main()
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
 
-    if(show_depth) {
-        CalcPointLight(pointLight, norm, FragPos, viewDir);
-    } else {
-        FragColor = vec4(CalcPointLight(pointLight, norm, FragPos, viewDir), 1.0);
-    }
+    vec3 result = PointLoops(norm, FragPos, viewDir);
+
+    FragColor = vec4(result,1.0);
+
 }
 
 
 // calculates the color when using a point light.
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
+    // return fragPos;
     vec3 lightDir = normalize(light.position - fragPos);
     // diffuse shading
     float diff = max(dot(normal, lightDir), 0.0);
@@ -78,13 +98,17 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     diffuse *= attenuation;
     specular *= attenuation;
 
-    float shadow = ShadowCalculations(fragPos);
+    ambient *= light.color;
+    diffuse *= light.color;
+    specular *= light.color;
+
+    float shadow = ShadowCalculations(light, fragPos);
     return (ambient + (1.0 - shadow) * (diffuse + specular)) ;
 }
 
-float ShadowCalculations(vec3 fragPos){
+float ShadowCalculations(PointLight light, vec3 fragPos){
     // get vector between fragment position and light position
-    vec3 fragToLight = fragPos - pointLight.position;
+    vec3 fragToLight = fragPos - light.position;
     // use the fragment to light vector to sample from the depth map
     // float closestDepth = texture(depthMap, fragToLight).r;
     // it is currently in linear range between [0,1], let's re-transform it back to original depth value
@@ -124,7 +148,7 @@ float ShadowCalculations(vec3 fragPos){
 
 
     float shadow = 0.0;
-    float bias = 0.15;
+    float bias = 0.05;
     int samples = 20;
     float viewDistance = length(viewPos - fragPos);
     float diskRadius = (1.0 + (viewDistance / far_plane)) / 25.0;
@@ -132,7 +156,7 @@ float ShadowCalculations(vec3 fragPos){
     for(int i = 0; i < samples; ++i)
     {
         // this is the bad line of code
-        float closestDepth = texture(depthMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
+        float closestDepth = texture(light.depthMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
         closestDepth *= far_plane;   // undo mapping [0;1]
         if(currentDepth - bias > closestDepth) {
             shadow += 1.0;
@@ -142,9 +166,6 @@ float ShadowCalculations(vec3 fragPos){
     shadow /= float(samples);
 
     // display closestDepth as debug (to visualize depth cubemap)
-    if(show_depth) {
-        FragColor = vec4(vec3(max_depth / far_plane), 1.0);
-    }
 
     return shadow;
 }

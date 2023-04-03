@@ -37,8 +37,8 @@ impl ShaderProgram {
         if !data.has_next() {
             unsafe {
                 let uid = self.get_uniform(name)?;
-                // if uid <= 0 {
-                //     bail!("Invalid UID")
+                // if uid < 0 {
+                //     println!("Invalid UID {} for name {}", uid, name);
                 // }
                 data.set_uniform(uid);
             }
@@ -55,9 +55,10 @@ impl ShaderProgram {
         if !data.has_next() {
             unsafe {
                 let uid = self.get_uniform(name)?;
-                // if uid <= 0 {
-                //     bail!("Invalid UID")
+                // if uid < 0 {
+                //     println!("Invalid UID {} for name {}", uid, name);
                 // }
+                // println!("setting name {name}");
                 data.set_uniform(uid);
             }
             return Ok(());
