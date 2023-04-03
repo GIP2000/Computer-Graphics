@@ -283,19 +283,9 @@ fn main() {
 fn render(vbo_vba: &VOs, shader: &ShaderProgram, maze: &Maze) {
     for (y, row) in maze.iter().enumerate() {
         for (x, entry) in row.iter().enumerate() {
-            // if entry == &MazeEntry::Wall {
-            //     let model = Matrix4::from_translation(vec3(x as f32, 1., y as f32));
-            //     shader.set_uniform("model", model).unwrap();
-            //     vbo_vba.draw_arrays(0, 36).unwrap();
-            // }
             let model: Matrix4<f32> = match entry {
                 maze::logic::MazeEntry::Wall => {
                     Matrix4::from_translation(vec3(x as f32, 1., y as f32))
-                    // shader
-                    //     .set_uniform("model", model * Matrix4::from_translation(vec3(0., 1., 0.)))
-                    //     .unwrap();
-                    // vbo_vba.draw_arrays(0, 36).unwrap();
-                    // model
                 }
                 _ => {
                     let model = Matrix4::from_translation(vec3(x as f32, 0., y as f32));
