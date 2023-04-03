@@ -214,7 +214,18 @@ fn main() {
         if let Some(dir) = dir {
             if dir != 0 {
                 let time = w.delta_time;
-                let new_pos: MazeIndex = cam.try_translate_camera(dir, time).into();
+                let old_pos = cam.try_translate_camera(dir, time).to_vec();
+                let mut new_pos = old_pos.clone();
+                'outer: for dz in [-0.1, 0., 0.1].into_iter() {
+                    for dx in [-0.1, 0., 0.1].into_iter() {
+                        new_pos = old_pos + vec3(dx, 0., dz);
+                        if maze[new_pos.into()] == MazeEntry::Wall {
+                            break 'outer;
+                        }
+                    }
+                }
+                let new_pos: MazeIndex = new_pos.into();
+                // let new_pos: MazeIndex = cam.try_translate_camera(dir, time).into();
                 if maze[new_pos] != MazeEntry::Wall {
                     cam.translate_camera(dir, time);
                     shader.set_uniform("viewPos", cam.get_pos()).unwrap();
@@ -254,6 +265,7 @@ fn main() {
         render(&vbo_vba, &shader, &maze);
 
         if show_lamps {
+            println!("cam pos: {:?}", cam.get_pos());
             lamp_shader.use_program();
             lamp_shader.set_uniform("view", view).unwrap();
             for point_light in maze.get_lights().iter() {
