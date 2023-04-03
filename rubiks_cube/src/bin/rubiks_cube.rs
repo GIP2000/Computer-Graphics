@@ -34,9 +34,15 @@ fn main() {
     let f_shader =
         Shader::new(FRAG_SHADER_SOURCE, gl::FRAGMENT_SHADER).expect("Failed to compile F Shader");
     let shader = ShaderProgram::new([v_shader, f_shader]).expect("Failed to Create Shader Program");
+
+    #[rustfmt::skip]
     let face_verts: [f32; 30] = [
-        -0.5, -0.5, 0.5, 0., 0., 0.5, -0.5, 0.5, 1., 0., 0.5, 0.5, 0.5, 1., 1., 0.5, 0.5, 0.5, 1.,
-        1., -0.5, 0.5, 0.5, 0., 1., -0.5, -0.5, 0.5, 0., 0.,
+        -0.5, -0.5, 0.5, 0., 0.,
+         0.5, -0.5, 0.5, 1., 0.,
+         0.5,  0.5, 0.5, 1., 1.,
+         0.5,  0.5, 0.5, 1., 1.,
+        -0.5,  0.5, 0.5, 0., 1.,
+        -0.5, -0.5, 0.5, 0., 0.,
     ];
 
     let attributes = [
