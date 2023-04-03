@@ -265,7 +265,6 @@ fn main() {
         render(&vbo_vba, &shader, &maze);
 
         if show_lamps {
-            println!("cam pos: {:?}", cam.get_pos());
             lamp_shader.use_program();
             lamp_shader.set_uniform("view", view).unwrap();
             for point_light in maze.get_lights().iter() {
