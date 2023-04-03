@@ -33,7 +33,12 @@ const GEOMETRY_SHADER_SOURCE_DEPTH: &'static str = include_str!("../../shader/de
 fn main() {
     let mut window = Window::new(SCR_WIDTH, SCR_HEIGHT, "Learn Opengl", false, false).unwrap();
     window.window.set_framebuffer_size_polling(true);
-    let mut maze: Maze = read_to_string("./maze.txt")
+    let file_name = if std::env::args().len() <= 1 {
+        "./maze.txt".to_owned()
+    } else {
+        std::env::args().last().unwrap()
+    };
+    let mut maze: Maze = read_to_string(file_name)
         .expect("Failed to find file maze.txt")
         .parse()
         .expect("Error parsing maze");
