@@ -1,5 +1,5 @@
-mod set_uniform;
-use anyhow::{bail, Result};
+pub mod set_uniform;
+use anyhow::{bail, Context, Result};
 use gl::types::*;
 use set_uniform::SetUniform;
 use std::{ffi::CString, ptr};
@@ -32,16 +32,41 @@ impl ShaderProgram {
         ))
     }
 
+    fn set_uniform_dyn(&self, name: &str, data: &dyn SetUniform) -> Result<()> {
+        self.use_program();
+        if !data.has_next() {
+            unsafe {
+                let uid = self.get_uniform(name)?;
+                // if uid < 0 {
+                //     println!("Invalid UID {} for name {}", uid, name);
+                // }
+                data.set_uniform(uid);
+            }
+            return Ok(());
+        }
+        for (name, d) in data.name_data_list(name) {
+            self.set_uniform_dyn(&name, d)?;
+        }
+        return Ok(());
+    }
+
     pub fn set_uniform<T: SetUniform>(&self, name: &str, data: T) -> Result<()> {
         self.use_program();
-        unsafe {
-            let uid = self.get_uniform(name)?;
-            // if uid <= 0 {
-            //     bail!("Invalid UID")
-            // }
-            data.set_uniform(uid);
+        if !data.has_next() {
+            unsafe {
+                let uid = self.get_uniform(name)?;
+                // if uid < 0 {
+                //     println!("Invalid UID {} for name {}", uid, name);
+                // }
+                // println!("setting name {name}");
+                data.set_uniform(uid);
+            }
+            return Ok(());
         }
-        Ok(())
+        for (name, d) in data.name_data_list(name) {
+            self.set_uniform_dyn(&name, d)?;
+        }
+        return Ok(());
     }
 
     pub fn new<const N: usize>(shaders: [Shader; N]) -> Result<Self> {
@@ -96,17 +121,24 @@ impl Shader {
             gl::CompileShader(shader);
 
             let mut success = gl::FALSE as GLint;
-            let mut info_log: Vec<char> = Vec::with_capacity(512);
-            info_log.set_len(512 - 1); // subtract 1 to skip the trailing null character
+            let mut info_log: Vec<u8> = Vec::with_capacity(1024);
+            info_log.set_len(1024 - 1); // subtract 1 to skip the trailing null character
             gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
             if success != gl::TRUE as GLint {
                 gl::GetShaderInfoLog(
                     shader,
-                    512,
+                    1024,
                     ptr::null_mut(),
                     info_log.as_mut_ptr() as *mut GLchar,
                 );
-                bail!("ERROR::SHADER::VERTEX::COMPILATION_FAILED\n{:?}", info_log);
+                let info_log = info_log
+                    .split(|&c| c == 0)
+                    .next()
+                    .context("Malformed Error message")?;
+                bail!(
+                    "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n{}",
+                    std::str::from_utf8(info_log)?
+                );
             }
         }
         Ok(Self { shader })

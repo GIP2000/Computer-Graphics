@@ -1,13 +1,13 @@
 use super::bindable::Bindable;
 use anyhow::{bail, Context, Result};
-use gl::types::*;
-use std::ffi::c_void;
+use gl::types::GLenum;
+use std::{ffi::c_void, ptr};
 
-pub struct Textures<'a, const N: usize> {
-    textures: [&'a Texture2D; N],
+pub struct Textures<'a> {
+    textures: Vec<&'a dyn Tex2DTrait>,
 }
 
-impl<'a, const N: usize> Bindable for Textures<'a, N> {
+impl<'a> Bindable for Textures<'a> {
     fn bind(&self) -> Result<()> {
         for (i, texture) in self.textures.iter().enumerate() {
             unsafe {
@@ -19,8 +19,8 @@ impl<'a, const N: usize> Bindable for Textures<'a, N> {
     }
 }
 
-impl<'a, const N: usize> Textures<'a, N> {
-    pub fn new(textures: [&'a Texture2D; N]) -> Result<Self> {
+impl<'a> Textures<'a> {
+    pub fn new(textures: &[&'a dyn Tex2DTrait]) -> Result<Self> {
         let mut max = 0;
         unsafe {
             gl::GetIntegerv(gl::MAX_COMBINED_TEXTURE_IMAGE_UNITS, &mut max);
@@ -28,7 +28,99 @@ impl<'a, const N: usize> Textures<'a, N> {
         if textures.len() as i32 >= max {
             bail!("Too many textures attempted")
         }
-        Ok(Self { textures })
+        Ok(Self {
+            textures: textures.iter().cloned().collect::<Vec<_>>(),
+        })
+    }
+}
+
+pub trait Tex2DTrait: Bindable {
+    fn get_tex(&self) -> &u32;
+    fn drop_impl(&self) {
+        unsafe {
+            gl::DeleteTextures(1, self.get_tex());
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CubeMap {
+    tex: u32,
+}
+
+impl CubeMap {
+    pub fn new(width: i32, height: i32, format: gl::types::GLenum) -> Result<Self> {
+        let mut tex = 0;
+        unsafe {
+            gl::GenTextures(1, &mut tex);
+        }
+        let tex = Self { tex };
+        tex.bind()?;
+        for i in 0..6 {
+            unsafe {
+                gl::TexImage2D(
+                    gl::TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                    0,
+                    format as i32,
+                    width,
+                    height,
+                    0,
+                    format,
+                    gl::FLOAT,
+                    ptr::null(),
+                );
+            }
+        }
+        unsafe {
+            gl::TexParameteri(
+                gl::TEXTURE_CUBE_MAP,
+                gl::TEXTURE_MAG_FILTER,
+                gl::NEAREST as i32,
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_CUBE_MAP,
+                gl::TEXTURE_MIN_FILTER,
+                gl::NEAREST as i32,
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_CUBE_MAP,
+                gl::TEXTURE_WRAP_S,
+                gl::CLAMP_TO_EDGE as i32,
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_CUBE_MAP,
+                gl::TEXTURE_WRAP_T,
+                gl::CLAMP_TO_EDGE as i32,
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_CUBE_MAP,
+                gl::TEXTURE_WRAP_R,
+                gl::CLAMP_TO_EDGE as i32,
+            );
+        }
+
+        return Ok(tex);
+    }
+}
+
+impl Tex2DTrait for CubeMap {
+    fn get_tex(&self) -> &u32 {
+        &self.tex
+    }
+}
+
+impl Bindable for CubeMap {
+    fn bind(&self) -> Result<()> {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_CUBE_MAP, self.tex);
+        }
+        return Ok(());
+    }
+}
+
+impl Drop for CubeMap {
+    fn drop(&mut self) {
+        return self.drop_impl();
     }
 }
 
@@ -42,15 +134,19 @@ impl Bindable for Texture2D {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.tex);
         }
-        Ok(())
+        return Ok(());
     }
 }
 
 impl Drop for Texture2D {
     fn drop(&mut self) {
-        unsafe {
-            gl::DeleteTextures(1, &self.tex);
-        }
+        return self.drop_impl();
+    }
+}
+
+impl Tex2DTrait for Texture2D {
+    fn get_tex(&self) -> &u32 {
+        &self.tex
     }
 }
 
@@ -70,13 +166,14 @@ impl Texture2D {
             bail!("Unsopported source image type")
         };
         let mut tex = 0;
-
         unsafe {
             gl::GenTextures(1, &mut tex);
-            if tex <= 0 {
-                bail!("Couldn't Generate texture Buffer")
-            }
-            gl::BindTexture(gl::TEXTURE_2D, tex);
+        }
+        let tex = Self { tex };
+
+        tex.bind().unwrap();
+
+        unsafe {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, x as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, y as i32);
 
@@ -105,6 +202,6 @@ impl Texture2D {
             gl::GenerateMipmap(gl::TEXTURE_2D);
         }
 
-        Ok(Self { tex })
+        return Ok(tex);
     }
 }

@@ -1,5 +1,6 @@
 pub mod bindable;
 pub mod ebo;
+pub mod framebuffer;
 pub mod texture;
 
 use super::gl_size::GLSize;

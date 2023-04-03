@@ -3,6 +3,7 @@ use std::{convert::TryInto, path::Path};
 
 use cgmath::{perspective, vec3, vec4, Deg, Matrix4, Point3, Rad, Vector4};
 use glfw::{Action, Key};
+use learn_opengl::gls::buffers::texture::Tex2DTrait;
 use learn_opengl::{
     gls::{
         buffers::{
@@ -33,9 +34,15 @@ fn main() {
     let f_shader =
         Shader::new(FRAG_SHADER_SOURCE, gl::FRAGMENT_SHADER).expect("Failed to compile F Shader");
     let shader = ShaderProgram::new([v_shader, f_shader]).expect("Failed to Create Shader Program");
+
+    #[rustfmt::skip]
     let face_verts: [f32; 30] = [
-        -0.5, -0.5, 0.5, 0., 0., 0.5, -0.5, 0.5, 1., 0., 0.5, 0.5, 0.5, 1., 1., 0.5, 0.5, 0.5, 1.,
-        1., -0.5, 0.5, 0.5, 0., 1., -0.5, -0.5, 0.5, 0., 0.,
+        -0.5, -0.5, 0.5, 0., 0.,
+         0.5, -0.5, 0.5, 1., 0.,
+         0.5,  0.5, 0.5, 1., 1.,
+         0.5,  0.5, 0.5, 1., 1.,
+        -0.5,  0.5, 0.5, 0., 1.,
+        -0.5, -0.5, 0.5, 0., 0.,
     ];
 
     let attributes = [
@@ -84,14 +91,10 @@ fn main() {
     )
     .unwrap();
 
-    let texs = Textures::<13>::new(core::array::from_fn(|i| {
-        if i < 12 {
-            &imgs[i]
-        } else {
-            &win_texture
-        }
-    }))
-    .unwrap();
+    let mut texs: Vec<&dyn Tex2DTrait> = imgs.iter().map(|x| x as &dyn Tex2DTrait).collect();
+    texs.push(&win_texture);
+
+    let texs = Textures::new(texs.as_slice()).unwrap();
     texs.bind().unwrap();
 
     shader.set_uniform("has_texture", false).unwrap();
