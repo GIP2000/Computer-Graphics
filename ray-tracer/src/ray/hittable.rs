@@ -1,4 +1,8 @@
+use std::{cell::RefCell, rc::Rc};
+
 use cgmath::{vec3, InnerSpace, Point3, Vector3};
+
+use crate::material::Material;
 
 use super::Ray;
 
@@ -7,15 +11,23 @@ pub struct HitRecord {
     pub p: Point3<f64>,
     pub normal: Vector3<f64>,
     pub front_face: bool,
+    pub mat_ptr: Rc<RefCell<dyn Material>>,
 }
 
 impl HitRecord {
-    pub fn new(t: f64, p: Point3<f64>, outward_normal: Vector3<f64>, r: &Ray) -> Self {
+    pub fn new(
+        t: f64,
+        p: Point3<f64>,
+        outward_normal: Vector3<f64>,
+        r: &Ray,
+        mat_ptr: Rc<RefCell<dyn Material>>,
+    ) -> Self {
         let mut hr = Self {
             t,
             p,
             normal: vec3(0., 0., 0.),
             front_face: false,
+            mat_ptr,
         };
         hr.set_face_normal(r, outward_normal);
         return hr;
@@ -74,20 +86,16 @@ impl HittableList {
 pub struct Sphere {
     pub center: Point3<f64>,
     pub radius: f64,
-}
-
-impl Default for Sphere {
-    fn default() -> Self {
-        Self {
-            center: Point3::new(0., 0., 0.),
-            radius: 0.,
-        }
-    }
+    pub mat_ptr: Rc<RefCell<dyn Material>>,
 }
 
 impl Sphere {
-    pub fn new(center: Point3<f64>, radius: f64) -> Self {
-        Self { center, radius }
+    pub fn new(center: Point3<f64>, radius: f64, mat_ptr: Rc<RefCell<dyn Material>>) -> Self {
+        Self {
+            center,
+            radius,
+            mat_ptr,
+        }
     }
 }
 
@@ -112,6 +120,12 @@ impl Hittable for Sphere {
         let t = root;
         let p = r.at(t);
         let outward_normal = (p - self.center) / self.radius;
-        return Some(HitRecord::new(t, p, outward_normal, r));
+        return Some(HitRecord::new(
+            t,
+            p,
+            outward_normal,
+            r,
+            self.mat_ptr.clone(),
+        ));
     }
 }
