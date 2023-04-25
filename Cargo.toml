@@ -3,5 +3,6 @@
 members = [
     "Learn-Opengl",
     "rubiks_cube",
-    "maze"
+    "maze",
+    "ray-tracer",
 ]
