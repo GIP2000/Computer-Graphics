@@ -18,8 +18,8 @@ pub struct Lambertian {
 }
 
 impl Lambertian {
-    pub fn new(albedo: Color) -> Rc<RefCell<Self>> {
-        return Rc::new(RefCell::new(Self { albedo }));
+    pub fn new(albedo: Color) -> Box<Self> {
+        return Box::new(Self { albedo });
     }
 }
 impl Material for Lambertian {
@@ -38,11 +38,11 @@ pub struct Metal {
 }
 
 impl Metal {
-    pub fn new(albedo: Color, fuzz: f64) -> Rc<RefCell<Self>> {
-        return Rc::new(RefCell::new(Self {
+    pub fn new(albedo: Color, fuzz: f64) -> Box<Self> {
+        return Box::new(Self {
             albedo,
             fuzz: if fuzz < 1. { fuzz } else { 1. },
-        }));
+        });
     }
 }
 impl Material for Metal {
@@ -64,8 +64,8 @@ pub struct Dielectric {
 }
 
 impl Dielectric {
-    pub fn new(ir: f64) -> Rc<RefCell<Self>> {
-        return Rc::new(RefCell::new(Self { ir }));
+    pub fn new(ir: f64) -> Box<Self> {
+        return Box::new(Self { ir });
     }
     fn reflectance(cosine: f64, ref_idx: f64) -> f64 {
         let mut r0 = (1. - ref_idx) / (1. + ref_idx);

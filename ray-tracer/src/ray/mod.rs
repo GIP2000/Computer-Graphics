@@ -36,7 +36,7 @@ impl Ray {
         }
 
         if let Some(rec) = world.hit(self, 0.001, INFINITY) {
-            if let Some((attenuation, scattered)) = rec.mat_ptr.borrow().scatter(self, &rec) {
+            if let Some((attenuation, scattered)) = rec.mat_ptr.scatter(self, &rec) {
                 return attenuation.mul_element_wise(scattered.color(world, depth - 1));
             }
             return vec3(0., 0., 0.);

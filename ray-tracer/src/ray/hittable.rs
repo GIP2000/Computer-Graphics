@@ -6,14 +6,14 @@ use crate::material::Material;
 
 use super::Ray;
 
-pub struct HitRecord {
+pub struct HitRecord<'a> {
     pub t: f64,
     pub p: Point3<f64>,
     pub normal: Vector3<f64>,
     pub front_face: bool,
-    pub mat_ptr: Rc<RefCell<dyn Material>>,
+    pub mat_ptr: &'a dyn Material,
 }
-impl Debug for HitRecord {
+impl<'a> Debug for HitRecord<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -23,13 +23,13 @@ impl Debug for HitRecord {
     }
 }
 
-impl HitRecord {
+impl<'a> HitRecord<'a> {
     pub fn new(
         t: f64,
         p: Point3<f64>,
         outward_normal: Vector3<f64>,
         r: &Ray,
-        mat_ptr: Rc<RefCell<dyn Material>>,
+        mat_ptr: &'a dyn Material,
     ) -> Self {
         let mut hr = Self {
             t,
@@ -95,11 +95,12 @@ impl HittableList {
 pub struct Sphere {
     pub center: Point3<f64>,
     pub radius: f64,
-    pub mat_ptr: Rc<RefCell<dyn Material>>,
+    pub mat_ptr: Box<dyn Material>, // pub mat_ptr: Rc<RefCell<dyn Material>>,
 }
 
 impl Sphere {
-    pub fn new(center: Point3<f64>, radius: f64, mat_ptr: Rc<RefCell<dyn Material>>) -> Self {
+    // pub fn new(center: Point3<f64>, radius: f64, mat_ptr: Rc<RefCell<dyn Material>>) -> Self {
+    pub fn new(center: Point3<f64>, radius: f64, mat_ptr: Box<dyn Material>) -> Self {
         Self {
             center,
             radius,
@@ -134,7 +135,7 @@ impl Hittable for Sphere {
             p,
             outward_normal,
             r,
-            self.mat_ptr.clone(),
+            self.mat_ptr.as_ref(),
         ));
     }
 }
