@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use cgmath::{vec3, InnerSpace, Point3, Vector3};
 
@@ -12,6 +12,15 @@ pub struct HitRecord {
     pub normal: Vector3<f64>,
     pub front_face: bool,
     pub mat_ptr: Rc<RefCell<dyn Material>>,
+}
+impl Debug for HitRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Hit Record {{t: {:?}, p: {:?}, normal: {:?}, front_face: {:?}}}",
+            self.t, self.p, self.normal, self.front_face
+        )
+    }
 }
 
 impl HitRecord {
@@ -38,7 +47,7 @@ impl HitRecord {
             outward_normal
         } else {
             -outward_normal
-        }
+        };
     }
 }
 
@@ -111,9 +120,9 @@ impl Hittable for Sphere {
         }
         let sqrtd = discriminant.sqrt();
         let root = (-half_b - sqrtd) / a;
-        if root < t_min || t_max < root {
+        if root <= t_min || root >= t_max {
             let root = (-half_b + sqrtd) / a;
-            if root < t_min || t_max < root {
+            if root <= t_min || root >= t_max {
                 return None;
             }
         }

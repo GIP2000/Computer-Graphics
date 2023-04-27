@@ -40,8 +40,6 @@ impl Ray {
                 return attenuation.mul_element_wise(scattered.color(world, depth - 1));
             }
             return vec3(0., 0., 0.);
-            // let target = rec.p + rec.normal + Vector3::random_in_hemisphere(rec.normal);
-            // return 0.5 * Ray::new(rec.p, target - rec.p).color(world, depth - 1);
         }
         let unit_direction = self.dir.normalize();
         let t = 0.5 * (unit_direction.y + 1.);

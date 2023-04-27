@@ -1,6 +1,7 @@
 use cgmath::{vec3, InnerSpace, Vector3};
 
 use crate::{
+    random_double,
     ray::{hittable::HitRecord, Ray},
     vector_additon::VectorAdditions,
     Color,
@@ -21,7 +22,7 @@ impl Lambertian {
 }
 impl Material for Lambertian {
     fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
-        let mut scatter_direction = rec.normal + Vector3::random(0. ..1.).normalize();
+        let mut scatter_direction = rec.normal + Vector3::random_in_unit_sphere().normalize();
         if scatter_direction.near_zero() {
             scatter_direction = rec.normal;
         }
@@ -64,6 +65,11 @@ impl Dielectric {
     pub fn new(ir: f64) -> Self {
         return Self { ir };
     }
+    fn reflectance(cosine: f64, ref_idx: f64) -> f64 {
+        let mut r0 = (1. - ref_idx) / (1. + ref_idx);
+        r0 = r0 * r0;
+        return r0 + (1. - r0) * (1. - cosine).powi(5);
+    }
 }
 
 impl Material for Dielectric {
@@ -75,15 +81,17 @@ impl Material for Dielectric {
             self.ir
         };
         let unit_direction = r_in.direction().normalize();
-        let cos_theta = (-unit_direction).dot(rec.normal).min(1.);
-        let sin_theta = (1. - cos_theta * cos_theta).sqrt();
-        let cannot_refract = refraction_ratio * sin_theta > 1.;
-        let direction = if cannot_refract {
-            unit_direction.reflect(rec.normal)
-        } else {
-            unit_direction.refract(rec.normal, refraction_ratio)
-        };
-
+        // let cos_theta = (-unit_direction).dot(rec.normal).min(1.);
+        // let sin_theta = (1. - cos_theta * cos_theta).sqrt();
+        // let cannot_reflect = refraction_ratio * sin_theta > 1.;
+        // let direction = if cannot_reflect
+        // || Self::reflectance(cos_theta, refraction_ratio) > random_double(0. ..1.)
+        // {
+        //     unit_direction.reflect(rec.normal)
+        // } else {
+        // unit_direction.refract(rec.normal, refraction_ratio)
+        let direction = unit_direction.refract(rec.normal, refraction_ratio);
+        // };
         return Some((attenuation, Ray::new(rec.p, direction)));
     }
 }

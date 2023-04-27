@@ -20,9 +20,9 @@ fn main() -> Result<()> {
 
     // World
     let material_ground = Rc::new(RefCell::new(Lambertian::new(vec3(0.8, 0.8, 0.))));
-    let material_center = Rc::new(RefCell::new(Dielectric::new(1.5)));
+    let material_center = Rc::new(RefCell::new(Lambertian::new(vec3(0.1, 0.2, 0.5))));
     let material_left = Rc::new(RefCell::new(Dielectric::new(1.5)));
-    let material_right = Rc::new(RefCell::new(Metal::new(vec3(0.8, 0.6, 0.2), 1.)));
+    let material_right = Rc::new(RefCell::new(Metal::new(vec3(0.8, 0.6, 0.2), 0.)));
     let mut world = HittableList::default();
     world.add(Box::new(Sphere::new(
         Point3::new(0., -100.5, -1.),
@@ -34,6 +34,11 @@ fn main() -> Result<()> {
         Point3::new(0., 0., -1.),
         0.5,
         material_center.clone(),
+    )));
+    world.add(Box::new(Sphere::new(
+        Point3::new(-1., 0., -1.),
+        -0.4,
+        material_left.clone(),
     )));
     world.add(Box::new(Sphere::new(
         Point3::new(-1., 0., -1.),
@@ -53,7 +58,8 @@ fn main() -> Result<()> {
         for _ in 0..w.samples_per_pixel {
             let u = (i as f64 + random_double(0. ..1.)) / (w.image_width - 1) as f64;
             let v = (j as f64 + random_double(0. ..1.)) / (w.image_height - 1) as f64;
-            pixel_color += cam.get_ray(u, v).color(&world, MAX_DEPTH);
+            let color = cam.get_ray(u, v).color(&world, MAX_DEPTH);
+            pixel_color += color;
         }
         pixel_color
     })?;
