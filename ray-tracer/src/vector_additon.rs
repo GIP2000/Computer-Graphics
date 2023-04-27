@@ -1,13 +1,14 @@
 use std::ops::Range;
 
-use cgmath::{vec3, ElementWise, InnerSpace, Vector3};
+use cgmath::{vec3, InnerSpace, Vector3};
 
-use crate::random_double;
+use crate::random;
 
 pub trait VectorAdditions {
     fn random(range: Range<f64>) -> Self;
     fn random_in_unit_sphere() -> Self;
     fn random_in_hemisphere(normal: Vector3<f64>) -> Self;
+    fn random_in_unit_disk() -> Self;
     fn near_zero(&self) -> bool;
     fn reflect(&self, n: Vector3<f64>) -> Self;
     fn refract(&self, n: Vector3<f64>, etai_over_etat: f64) -> Self;
@@ -17,9 +18,9 @@ impl VectorAdditions for Vector3<f64> {
     #[inline]
     fn random(range: Range<f64>) -> Self {
         vec3(
-            random_double(range.clone()),
-            random_double(range.clone()),
-            random_double(range.clone()),
+            random(range.clone()),
+            random(range.clone()),
+            random(range.clone()),
         )
     }
 
@@ -59,5 +60,15 @@ impl VectorAdditions for Vector3<f64> {
         let r_out_perp = etai_over_etat * (self + cos_theta * n);
         let r_out_parallel = -((1. - r_out_perp.magnitude2()).abs()).sqrt() * n;
         return r_out_perp + r_out_parallel;
+    }
+
+    fn random_in_unit_disk() -> Self {
+        loop {
+            let p = vec3(random(-1. ..1.), random(-1. ..1.), 0.);
+            if p.magnitude2() >= 1. {
+                continue;
+            }
+            return p;
+        }
     }
 }

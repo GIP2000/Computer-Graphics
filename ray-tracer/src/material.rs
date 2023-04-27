@@ -1,7 +1,9 @@
+use std::{cell::RefCell, rc::Rc};
+
 use cgmath::{vec3, InnerSpace, Vector3};
 
 use crate::{
-    random_double,
+    random,
     ray::{hittable::HitRecord, Ray},
     vector_additon::VectorAdditions,
     Color,
@@ -16,8 +18,8 @@ pub struct Lambertian {
 }
 
 impl Lambertian {
-    pub fn new(albedo: Color) -> Self {
-        return Self { albedo };
+    pub fn new(albedo: Color) -> Rc<RefCell<Self>> {
+        return Rc::new(RefCell::new(Self { albedo }));
     }
 }
 impl Material for Lambertian {
@@ -36,11 +38,11 @@ pub struct Metal {
 }
 
 impl Metal {
-    pub fn new(albedo: Color, fuzz: f64) -> Self {
-        return Self {
+    pub fn new(albedo: Color, fuzz: f64) -> Rc<RefCell<Self>> {
+        return Rc::new(RefCell::new(Self {
             albedo,
             fuzz: if fuzz < 1. { fuzz } else { 1. },
-        };
+        }));
     }
 }
 impl Material for Metal {
@@ -62,8 +64,8 @@ pub struct Dielectric {
 }
 
 impl Dielectric {
-    pub fn new(ir: f64) -> Self {
-        return Self { ir };
+    pub fn new(ir: f64) -> Rc<RefCell<Self>> {
+        return Rc::new(RefCell::new(Self { ir }));
     }
     fn reflectance(cosine: f64, ref_idx: f64) -> f64 {
         let mut r0 = (1. - ref_idx) / (1. + ref_idx);
@@ -81,17 +83,15 @@ impl Material for Dielectric {
             self.ir
         };
         let unit_direction = r_in.direction().normalize();
-        // let cos_theta = (-unit_direction).dot(rec.normal).min(1.);
-        // let sin_theta = (1. - cos_theta * cos_theta).sqrt();
-        // let cannot_reflect = refraction_ratio * sin_theta > 1.;
-        // let direction = if cannot_reflect
-        // || Self::reflectance(cos_theta, refraction_ratio) > random_double(0. ..1.)
-        // {
-        //     unit_direction.reflect(rec.normal)
-        // } else {
-        // unit_direction.refract(rec.normal, refraction_ratio)
-        let direction = unit_direction.refract(rec.normal, refraction_ratio);
-        // };
+        let cos_theta = (-unit_direction).dot(rec.normal).min(1.);
+        let sin_theta = (1. - cos_theta * cos_theta).sqrt();
+        let cannot_reflect = refraction_ratio * sin_theta > 1.;
+        let direction =
+            if cannot_reflect || Self::reflectance(cos_theta, refraction_ratio) > random(0. ..1.) {
+                unit_direction.reflect(rec.normal)
+            } else {
+                unit_direction.refract(rec.normal, refraction_ratio)
+            };
         return Some((attenuation, Ray::new(rec.p, direction)));
     }
 }

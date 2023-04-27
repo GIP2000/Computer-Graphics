@@ -2,5 +2,5 @@
 
 rubiks_cube_save.txt
 **/*.DS_STORE
-**/*.ppm
+**/image.ppm
 
