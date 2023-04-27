@@ -38,9 +38,9 @@ impl PPMImageWriter {
 
     fn write_color(&mut self, color: Color) -> Result<()> {
         let scale = 1. / self.samples_per_pixel as f64;
-        let r = (256. * (scale * color.x).sqrt().clamp(0., 0.999)) as u32;
-        let g = (256. * (scale * color.y).sqrt().clamp(0., 0.999)) as u32;
-        let b = (256. * (scale * color.z).sqrt().clamp(0., 0.999)) as u32;
+        let r = (256. * ((scale * color.x).sqrt().clamp(0., 0.999))) as u32;
+        let g = (256. * ((scale * color.y).sqrt().clamp(0., 0.999))) as u32;
+        let b = (256. * ((scale * color.z).sqrt().clamp(0., 0.999))) as u32;
 
         writeln!(self.file, "{} {} {}", r, g, b)?;
         Ok(())
@@ -49,7 +49,7 @@ impl PPMImageWriter {
     pub fn write<F: Fn(u32, u32, &Self) -> Color>(mut self, closure: F) -> Result<()> {
         writeln!(
             self.file,
-            "P3\n{} {}\n225",
+            "P3\n{} {}\n255",
             self.image_width, self.image_height
         )?;
         for j in (0..self.image_height).rev() {
