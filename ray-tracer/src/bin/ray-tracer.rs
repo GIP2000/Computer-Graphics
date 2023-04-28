@@ -8,6 +8,7 @@ use ray_tracer::{
     ray::hittable::{HittableList, Sphere},
     vector_additon::VectorAdditions,
 };
+use rayon::prelude::*;
 
 fn random_scene() -> HittableList {
     let mut world = HittableList::default();
@@ -89,14 +90,18 @@ fn main() -> Result<()> {
     );
 
     image.write(|j, i, w| {
-        let mut pixel_color = vec3(0., 0., 0.);
-        for _ in 0..w.samples_per_pixel {
-            let u = (i as f64 + random(0. ..1.)) / (w.image_width - 1) as f64;
-            let v = (j as f64 + random(0. ..1.)) / (w.image_height - 1) as f64;
-            let color = cam.get_ray(u, v).color(&world, MAX_DEPTH);
-            pixel_color += color;
-        }
-        pixel_color
+        (0..w.samples_per_pixel)
+            .into_par_iter()
+            .fold(
+                || vec3(0., 0., 0.),
+                |acc, _| {
+                    let u = (i as f64 + random(0. ..1.)) / (w.image_width - 1) as f64;
+                    let v = (j as f64 + random(0. ..1.)) / (w.image_height - 1) as f64;
+                    let color = cam.get_ray(u, v).color(&world, MAX_DEPTH);
+                    acc + color
+                },
+            )
+            .sum()
     })?;
 
     return Ok(());

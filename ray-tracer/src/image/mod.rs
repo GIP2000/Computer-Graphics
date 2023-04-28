@@ -1,7 +1,9 @@
 use anyhow::Result;
+use rayon::prelude::*;
 use std::{
     fs::{File, OpenOptions},
     io::Write,
+    sync::atomic::AtomicU32,
 };
 
 use crate::Color;
@@ -46,19 +48,50 @@ impl PPMImageWriter {
         Ok(())
     }
 
-    pub fn write<F: Fn(u32, u32, &Self) -> Color>(mut self, closure: F) -> Result<()> {
+    pub fn write<F>(mut self, closure: F) -> Result<()>
+    where
+        F: Fn(u32, u32, &Self) -> Color + Send + Sync,
+    {
         writeln!(
             self.file,
             "P3\n{} {}\n255",
             self.image_width, self.image_height
         )?;
-        for j in (0..self.image_height).rev() {
-            for i in 0..self.image_width {
-                eprint!("\rScanlines remaing {} ", j);
-                std::io::stderr().flush()?;
-                self.write_color(closure(j, i, &self))?;
-            }
+
+        let counter: AtomicU32 = AtomicU32::new(0);
+        eprintln!(
+            "width: {}, height: {}, total: {}",
+            self.image_width,
+            self.image_height,
+            self.image_height * self.image_width
+        );
+
+        let colors: Vec<Color> = (0..(self.image_width * self.image_height))
+            .into_par_iter()
+            .map(|idx| {
+                let j = self.image_height - (idx / self.image_width);
+                let i = idx % self.image_width;
+                let res = closure(j, i, &self);
+                let prev = counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                eprint!(
+                    "\r{:.2}%",
+                    (((prev + 1) as f64 / (self.image_width * self.image_height) as f64) * 100.)
+                );
+                std::io::stderr().flush().unwrap();
+                res
+            })
+            .collect();
+
+        for color in colors.into_iter() {
+            self.write_color(color)?;
         }
+        // for j in (0..self.image_height).rev() {
+        //     for i in 0..self.image_width {
+        //         eprint!("\rScanlines remaing {} ", j);
+        //         std::io::stderr().flush()?;
+        //         self.write_color(closure(j, i, &self))?;
+        //     }
+        // }
         eprintln!("\nDone. ");
         Ok(())
     }
