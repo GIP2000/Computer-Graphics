@@ -4,7 +4,7 @@
 
 1. Install Rust
   - Install Rustup (Linux / Macos)
-    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    - `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
   - Windows
     - [Install Script Download](https://static.rust-lang.org/rustup/dist/i686-pc-windows-gnu/rustup-init.exe)
   - run cargo --version to ensure rust is installed properly
